@@ -3567,3 +3567,83 @@ canvas {
         font-size: 1.4rem;
     }
 }
+/* ========== UNIVERSAL FOOTER STYLES (Matches Any Structure) ========== */
+
+/* Target any footer element */
+footer {
+    background: var(--dark) !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    padding: 48px 0 24px !important;
+    margin-top: 60px !important;
+    width: 100% !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+/* Target any footer container */
+footer > div:first-child {
+    max-width: 1280px !important;
+    margin: 0 auto !important;
+    padding: 0 24px !important;
+    display: grid !important;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)) !important;
+    gap: 40px !important;
+}
+
+/* Target footer headings */
+footer h4 {
+    color: white !important;
+    margin-bottom: 16px !important;
+    font-size: 1.1rem !important;
+    font-weight: 600 !important;
+    font-family: 'Playfair Display', serif !important;
+}
+
+/* Target footer paragraphs */
+footer p {
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-size: 0.85rem !important;
+    line-height: 1.5 !important;
+}
+
+/* Target footer links */
+footer a {
+    color: rgba(255, 255, 255, 0.7) !important;
+    text-decoration: none !important;
+    font-size: 0.85rem !important;
+}
+
+footer a:hover {
+    color: var(--secondary) !important;
+}
+
+/* Target footer lists */
+footer ul {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+footer li {
+    margin-bottom: 10px !important;
+}
+
+/* Target bottom bar */
+footer > div:last-child {
+    text-align: center !important;
+    padding-top: 24px !important;
+    margin-top: 32px !important;
+    border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+    font-size: 0.7rem !important;
+}
+
+/* Mobile Responsive */
+@media (max-width: 768px) {
+    footer > div:first-child {
+        text-align: center !important;
+    }
+    
+    footer .footerSection,
+    footer [id*="Section"] {
+        text-align: center !important;
+    }
+}
