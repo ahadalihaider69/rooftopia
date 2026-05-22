@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vote | Rooftopia Democracy</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <nav id="mainNavigation">
+    <div id="navContainer">
+        <div id="logoContainer">
+            <a href="index.html" id="logoLink">Rooftopia</a>
+        </div>
+        <button id="hamburgerMenuBtn">
+            <span id="hamburgerLine1"></span>
+            <span id="hamburgerLine2"></span>
+            <span id="hamburgerLine3"></span>
+        </button>
+        <ul id="navLinksList">
+            <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+            <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+            <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+            <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+            <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+        </ul>
+    </div>
+</nav>
+
+    <div class="vote-container">
+        <div id="loginCheck"></div>
+        <div id="votingContent" style="display: none;">
+            <h1 class="text-center">🗳️ Vote on National Matters</h1>
+            <p class="text-center">Welcome, <span id="userName"></span>! Your voice matters.</p>
+            <div id="proposalsList"></div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section"><h4>Republic of Rooftopia</h4><p>"Above the Ordinary"<br>Est. 2026</p></div>
+            <div class="footer-section"><h4>Quick Links</h4><ul><li><a href="apply.html">Apply</a></li><li><a href="dashboard.html">Dashboard</a></li><li><a href="about.html">About</a></li></ul></div>
+            <div class="footer-section"><h4>Contact</h4><p>📧 hello@rooftopia.gov</p></div>
+        </div>
+        <div class="footer-bottom"><p>© 2026 Republic of Rooftopia — "Above the Ordinary"</p></div>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const ADMIN_EMAIL = 'ahadalihaider79@gmail.com';
+        let currentUser = null;
+
+        async function checkAuth() {
+            const { data: { session } } = await sb.auth.getSession();
+            const loginCheck = document.getElementById('loginCheck');
+            const votingContent = document.getElementById('votingContent');
+            
+            if (!session) {
+                loginCheck.innerHTML = `<div class="login-required"><h2>🔒 Login Required</h2><p>You need to be logged in to vote.</p><a href="login.html" class="btn btn-primary">Go to Login</a><br><br><small><a href="signup.html">Create an account</a></small></div>`;
+                votingContent.style.display = 'none';
+                return false;
+            }
+            
+            currentUser = session.user;
+            loginCheck.innerHTML = '';
+            votingContent.style.display = 'block';
+            document.getElementById('userName').innerHTML = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+            loadProposals();
+            return true;
+        }
+
+        async function loadProposals() {
+            const container = document.getElementById('proposalsList');
+            container.innerHTML = '<div class="loading">📊 Loading proposals...</div>';
+            
+            const { data, error } = await sb.from('proposals').select('*').order('created_at', { ascending: false });
+            
+            if (error || !data || data.length === 0) {
+                container.innerHTML = '<div class="proposal-card"><p>No active proposals at the moment. Check back soon!</p></div>';
+                return;
+            }
+            
+            const { data: userVotes } = await sb.from('votes').select('proposal_id, vote').eq('citizen_email', currentUser.email);
+            const userVoteMap = {};
+            if (userVotes) userVotes.forEach(v => { userVoteMap[v.proposal_id] = v.vote; });
+            
+            let html = '';
+            for (const proposal of data) {
+                const { data: votes } = await sb.from('votes').select('vote').eq('proposal_id', proposal.id);
+                const yes = votes?.filter(v => v.vote === 'yes').length || 0;
+                const no = votes?.filter(v => v.vote === 'no').length || 0;
+                const abstain = votes?.filter(v => v.vote === 'abstain').length || 0;
+                const total = yes + no + abstain;
+                const yesPercent = total > 0 ? (yes / total * 100).toFixed(1) : 0;
+                const noPercent = total > 0 ? (no / total * 100).toFixed(1) : 0;
+                const abstainPercent = total > 0 ? (abstain / total * 100).toFixed(1) : 0;
+                const hasVoted = userVoteMap[proposal.id];
+                const isActive = new Date(proposal.end_date) > new Date();
+                
+                html += `
+                    <div class="proposal-card">
+                        <div class="proposal-header">
+                            <h3 class="proposal-title">${escapeHtml(proposal.title)}</h3>
+                            <span class="proposal-status ${isActive ? 'status-active' : 'status-closed'}">${isActive ? '🟢 Active' : '🔴 Closed'}</span>
+                        </div>
+                        <p class="proposal-description">${escapeHtml(proposal.description)}</p>
+                        <p style="font-size: 0.75rem; color: var(--text-muted);">📅 Ends: ${new Date(proposal.end_date).toLocaleString()}</p>
+                        ${isActive && !hasVoted ? `
+                            <div class="vote-buttons">
+                                <button class="vote-btn vote-yes" onclick="castVote('${proposal.id}', 'yes')">✅ Yes</button>
+                                <button class="vote-btn vote-no" onclick="castVote('${proposal.id}', 'no')">❌ No</button>
+                                <button class="vote-btn vote-abstain" onclick="castVote('${proposal.id}', 'abstain')">🤷 Abstain</button>
+                            </div>
+                        ` : hasVoted ? `
+                            <div class="vote-status">✅ You voted: <strong>${hasVoted.toUpperCase()}</strong></div>
+                        ` : `
+                            <div class="vote-status">🔒 Voting has ended for this proposal</div>
+                        `}
+                        <div class="results">
+                            <div>✅ Yes: ${yes} (${yesPercent}%)</div>
+                            <div class="result-bar"><div class="result-fill fill-yes" style="width: ${yesPercent}%;">${yesPercent > 10 ? yesPercent + '%' : ''}</div></div>
+                            <div>❌ No: ${no} (${noPercent}%)</div>
+                            <div class="result-bar"><div class="result-fill fill-no" style="width: ${noPercent}%;">${noPercent > 10 ? noPercent + '%' : ''}</div></div>
+                            <div>🤷 Abstain: ${abstain} (${abstainPercent}%)</div>
+                            <div class="result-bar"><div class="result-fill fill-abstain" style="width: ${abstainPercent}%;">${abstainPercent > 10 ? abstainPercent + '%' : ''}</div></div>
+                            <div class="vote-status">Total votes: ${total}</div>
+                        </div>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        async function castVote(proposalId, vote) {
+            const { error } = await sb.from('votes').insert([{
+                proposal_id: proposalId,
+                citizen_email: currentUser.email,
+                citizen_name: currentUser.user_metadata?.full_name || currentUser.email,
+                vote: vote,
+                voted_at: new Date().toISOString()
+            }]);
+            
+            if (error) {
+                if (error.code === '23505') alert('You have already voted on this proposal!');
+                else alert('Error: ' + error.message);
+            } else {
+                alert('✅ Vote recorded successfully!');
+                loadProposals();
+            }
+        }
+
+        function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+
+        async function checkAuthAndUpdateNav() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('auth-nav-item');
+            if (session) {
+                const isAdmin = session.user.email === ADMIN_EMAIL;
+                let profilePicUrl = null;
+                const { data: userData } = await sb.from('applications').select('photo').eq('auth_user_id', session.user.id).maybeSingle();
+                if (userData && userData.photo) profilePicUrl = userData.photo;
+                const profileIconHtml = profilePicUrl ? `<img src="${profilePicUrl}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">` : `<span style="color: white;">👤</span>`;
+                authNav.innerHTML = `<div style="position: relative; display: inline-block;"><div id="profileIcon" style="width: 40px; height: 40px; background: var(--primary); border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;">${profileIconHtml}</div><div id="dropdownMenu" style="position: absolute; right: 0; top: 45px; background: white; min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid #e2e8f0; z-index: 1000; display: none;"><a href="profile.html" style="display: block; padding: 10px 16px; color: #1e293b; text-decoration: none;">👤 My Profile</a>${isAdmin ? '<a href="admin.html" style="display: block; padding: 10px 16px; color: #1e293b; text-decoration: none;">🔐 Admin Panel</a>' : ''}<a href="#" onclick="logout()" style="display: block; padding: 10px 16px; color: #1e293b; text-decoration: none;">🚪 Logout</a></div></div>`;
+                const profileIcon = document.getElementById('profileIcon');
+                const dropdownMenu = document.getElementById('dropdownMenu');
+                if (profileIcon && dropdownMenu) {
+                    profileIcon.addEventListener('click', function(e) { e.stopPropagation(); const isVisible = dropdownMenu.style.display === 'block'; dropdownMenu.style.display = isVisible ? 'none' : 'block'; });
+                    document.addEventListener('click', function(e) { if (dropdownMenu && !profileIcon.contains(e.target) && !dropdownMenu.contains(e.target)) { dropdownMenu.style.display = 'none'; } });
+                }
+            } else {
+                authNav.innerHTML = '<a href="login.html">Login</a>';
+            }
+        }
+
+        window.logout = async function() { await sb.auth.signOut(); location.reload(); };
+        checkAuth();
+        checkAuthAndUpdateNav();
+        document.querySelector('.hamburger')?.addEventListener('click', function() { document.querySelector('.nav-links')?.classList.toggle('show'); });
+    </script>
+</body>
+</html>

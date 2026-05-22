@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>Admin Panel | Rooftopia</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav id="adminNav">
+        <div id="adminNavContainer">
+            <div id="adminLogo">Rooftopia Admin</div>
+            <button id="adminHamburgerBtn">☰</button>
+            <ul id="adminNavLinks">
+                <li><a href="index.html" id="navHomeLink">Home</a></li>
+                <li><a href="admin.html" id="navDashboardLink">Dashboard</a></li>
+                <li><a href="admin-messages.html" id="navMessagesLink">Messages</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Main Container -->
+    <div id="adminMainContainer">
+        <!-- Login Box -->
+        <div id="adminLoginBox">
+            <h2 id="loginTitle">Supreme Guardian Access</h2>
+            <p id="loginSubtitle">Enter your admin password</p>
+            <input type="password" id="adminPasswordInput" placeholder="Password">
+            <button id="adminLoginBtn">Login</button>
+        </div>
+
+        <!-- Admin Content (Hidden until login) -->
+        <div id="adminContentContainer" style="display: none;">
+            <!-- Stats Grid -->
+            <div id="statsGridContainer">
+                <div id="statCardPending" class="statCard">
+                    <div id="statPendingNumber">0</div>
+                    <div>Pending Applications</div>
+                </div>
+                <div id="statCardActive" class="statCard">
+                    <div id="statActiveNumber">0</div>
+                    <div>Active Citizens</div>
+                </div>
+                <div id="statCardTerminated" class="statCard">
+                    <div id="statTerminatedNumber">0</div>
+                    <div>Terminated</div>
+                </div>
+                <div id="statCardTotal" class="statCard">
+                    <div id="statTotalNumber">0</div>
+                    <div>Total Applications</div>
+                </div>
+                <div id="statCardVotes" class="statCard">
+                    <div id="statVotesNumber">0</div>
+                    <div>Total Votes Cast</div>
+                </div>
+                <div id="statCardVisits" class="statCard">
+                    <div id="statVisitsNumber">0</div>
+                    <div>Total Website Visits</div>
+                </div>
+            </div>
+
+            <!-- Admin Tabs -->
+            <div id="adminTabsContainer">
+                <button id="tabApplicationsBtn" class="adminTab active" data-tab="applications">Applications</button>
+                <button id="tabCitizensBtn" class="adminTab" data-tab="citizens">Citizens</button>
+                <button id="tabDecreesBtn" class="adminTab" data-tab="decrees">Decrees</button>
+                <button id="tabProposalsBtn" class="adminTab" data-tab="proposals">Proposals</button>
+                <button id="tabDeletionsBtn" class="adminTab" data-tab="deletions">Deletion Requests</button>
+                <button id="tabAnalyticsBtn" class="adminTab" data-tab="analytics">Analytics</button>
+            </div>
+
+            <!-- Tab: Applications -->
+            <div id="tabApplicationsContent" class="tabContent active">
+                <div id="applicationsSearchBox">
+                    <input type="text" id="applicationsSearchInput" placeholder="Search by name, email...">
+                </div>
+                <div id="applicationsListContainer"></div>
+            </div>
+
+            <!-- Tab: Citizens -->
+            <div id="tabCitizensContent" class="tabContent">
+                <div id="citizensSearchBox">
+                    <input type="text" id="citizensSearchInput" placeholder="Search by name, email, CNIC...">
+                </div>
+                <div id="citizensListContainer"></div>
+            </div>
+
+            <!-- Tab: Decrees -->
+            <div id="tabDecreesContent" class="tabContent">
+                <div id="newDecreeFormContainer">
+                    <h3 id="newDecreeTitle">Issue New Decree</h3>
+                    <div id="decreeTitleGroup">
+                        <input type="text" id="decreeTitleInput" placeholder="Decree Title">
+                    </div>
+                    <div id="decreeContentGroup">
+                        <textarea id="decreeContentInput" rows="3" placeholder="Decree Content"></textarea>
+                    </div>
+                    <div id="decreeTypeGroup">
+                        <select id="decreeTypeSelect">
+                            <option value="decree">Official Decree</option>
+                            <option value="announcement">Public Announcement</option>
+                            <option value="law">New Law</option>
+                        </select>
+                    </div>
+                    <button id="postDecreeBtn">Post Decree</button>
+                </div>
+                <div id="decreesListContainer"></div>
+            </div>
+
+            <!-- Tab: Proposals -->
+            <div id="tabProposalsContent" class="tabContent">
+                <div id="newProposalFormContainer">
+                    <h3 id="newProposalTitle">Create New Proposal</h3>
+                    <div id="proposalTitleGroup">
+                        <input type="text" id="proposalTitleInput" placeholder="Proposal Title">
+                    </div>
+                    <div id="proposalDescGroup">
+                        <textarea id="proposalDescInput" rows="3" placeholder="Proposal Description"></textarea>
+                    </div>
+                    <div id="proposalEndDateGroup">
+                        <input type="datetime-local" id="proposalEndDateInput">
+                    </div>
+                    <button id="createProposalBtn">Create Proposal</button>
+                </div>
+                <div id="proposalsListContainer"></div>
+            </div>
+
+            <!-- Tab: Deletion Requests -->
+            <div id="tabDeletionsContent" class="tabContent">
+                <div id="deletionsListContainer"></div>
+            </div>
+
+            <!-- Tab: Analytics -->
+            <div id="tabAnalyticsContent" class="tabContent">
+                <div id="visitsChartContainer">
+                    <h3>Website Visits (Last 7 Days)</h3>
+                    <canvas id="visitsChartCanvas"></canvas>
+                </div>
+                <div id="deviceChartContainer">
+                    <h3>Device Distribution</h3>
+                    <canvas id="deviceChartCanvas"></canvas>
+                </div>
+                <div id="provinceChartContainer">
+                    <h3>Province Distribution</h3>
+                    <canvas id="provinceChartCanvas"></canvas>
+                </div>
+                <div id="recentVisitorsContainer">
+                    <h3>Recent Visitors</h3>
+                    <div id="recentVisitorsList"></div>
+                </div>
+                <button id="clearAnalyticsBtn">Clear All Analytics</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const ADMIN_PASSWORD = "rooftopia2026";
+        const EDGE_FUNCTION_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co/functions/v1/delete-auth-user';
+        emailjs.init("yc1wK3daOfUYQaHE6");
+        const EMAILJS_SERVICE_ID = 'service_8z50aj8';
+        const EMAILJS_TEMPLATE_APPROVAL = 'template_nr8o30q';
+        
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        let allApplications = [];
+        let allCitizens = [];
+        let allVisits = [];
+        let visitsChart, deviceChart, provinceChart;
+
+        // ========== HELPER FUNCTIONS ==========
+        function formatLocalTime(utcTimestamp) {
+            if (!utcTimestamp) return '';
+            const date = new Date(utcTimestamp);
+            date.setHours(date.getHours() + 5);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatLocalDate(utcTimestamp) {
+            if (!utcTimestamp) return '';
+            const date = new Date(utcTimestamp);
+            date.setHours(date.getHours() + 5);
+            return date.toLocaleDateString();
+        }
+
+        // ========== LOGIN ==========
+        function login() {
+            const pwd = document.getElementById('adminPasswordInput').value;
+            if (pwd === ADMIN_PASSWORD) {
+                localStorage.setItem('rooftopia_admin_logged_in', 'true');
+                document.getElementById('adminLoginBox').style.display = 'none';
+                document.getElementById('adminContentContainer').style.display = 'block';
+                loadAllData();
+            } else {
+                alert('Invalid password');
+            }
+        }
+
+        async function loadAllData() {
+            await loadApplications();
+            await loadCitizens();
+            await loadDecrees();
+            await loadProposals();
+            await loadDeletionRequests();
+            await loadAnalytics();
+            updateStats();
+        }
+
+        // ========== EMAIL FUNCTION ==========
+        async function sendApprovalEmail(toEmail, toName, cnic, applicationId, province) {
+            try {
+                const provinceNames = { pr1: 'PR1 Province', pr2: 'PR2 Province', pr3: 'PR3 Province' };
+                const templateParams = {
+                    to_email: toEmail,
+                    to_name: toName,
+                    cnic_number: cnic,
+                    application_id: applicationId,
+                    province: provinceNames[province] || province.toUpperCase(),
+                    login_url: window.location.origin + '/login.html',
+                    message: `Dear ${toName},\n\nCongratulations! Your citizenship application for the Republic of Rooftopia has been APPROVED!\n\nCNIC: ${cnic}`
+                };
+                await emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_APPROVAL, templateParams);
+                return true;
+            } catch (error) {
+                console.error('Email error:', error);
+                return false;
+            }
+        }
+
+        // ========== APPLICATIONS ==========
+        async function loadApplications() {
+            const { data } = await sb.from('applications').select('*').order('submitted_at', { ascending: false });
+            allApplications = data || [];
+            renderApplications();
+        }
+
+        function renderApplications() {
+            const pending = allApplications.filter(a => a.status === 'pending' || a.status === 'pending_profile');
+            const container = document.getElementById('applicationsListContainer');
+            if (pending.length === 0) { container.innerHTML = '<p>No pending applications.</p>'; return; }
+            
+            container.innerHTML = pending.map(app => `
+                <div id="appCard_${app.application_id}" class="applicationCard">
+                    <div id="appCardInner_${app.application_id}">
+                        <img src="${app.photo || 'https://via.placeholder.com/50'}" id="appPhoto_${app.application_id}">
+                        <div id="appDetails_${app.application_id}">
+                            <p><strong>${app.full_name || 'N/A'}</strong> (${app.gender || 'N/A'})</p>
+                            <p>Father: ${app.father_name || 'N/A'} | DOB: ${app.dob ? new Date(app.dob).toLocaleDateString() : 'N/A'}</p>
+                            <p>Email: ${app.email || 'N/A'} | Country: ${app.current_country || 'N/A'}</p>
+                            <p>Reason: "${(app.reason || '').substring(0,100)}"</p>
+                            <p>Submitted: ${app.submitted_at ? new Date(app.submitted_at).toLocaleString() : 'N/A'}</p>
+                        </div>
+                    </div>
+                    <div id="appActions_${app.application_id}">
+                        <button id="approveBtn_${app.application_id}" onclick="approveApplication('${app.application_id}')">Approve & Send Email</button>
+                        <button id="rejectBtn_${app.application_id}" onclick="rejectApplication('${app.application_id}')">Reject</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getProvinceCount(province) {
+            return allApplications.filter(a => a.status === 'approved' && a.is_active === true && a.province === province).length;
+        }
+
+        function generateCNIC(province, gender) {
+            const pNames = { pr1: 'PR1', pr2: 'PR2', pr3: 'PR3' };
+            const code = pNames[province] || province.toUpperCase();
+            const g = gender === 'Male' ? 'M' : (gender === 'Female' ? 'F' : 'T');
+            const num = (getProvinceCount(province) + 1).toString().padStart(5, '0');
+            return `${code}-${num}-${g}`;
+        }
+
+        async function approveApplication(appId) {
+            const app = allApplications.find(a => a.application_id === appId);
+            if (!app) return;
+            
+            const cnic = generateCNIC(app.province, app.gender);
+            
+            const { error } = await sb.from('applications').update({
+                status: 'approved', 
+                cnic: cnic, 
+                approved_at: new Date().toISOString(), 
+                is_active: true
+            }).eq('application_id', appId);
+            
+            if (error) { 
+                alert('Error: ' + error.message); 
+                return; 
+            }
+            
+            const emailSent = await sendApprovalEmail(app.email, app.full_name, cnic, app.application_id, app.province);
+            await loadAllData();
+            
+            if (emailSent) {
+                alert(`Approved! Email sent to ${app.email}\nCNIC: ${cnic}`);
+            } else {
+                alert(`Approved! (Email failed)\nCNIC: ${cnic}`);
+            }
+        }
+
+        async function rejectApplication(appId) {
+            if (!confirm('Reject this application?')) return;
+            await sb.from('applications').update({ status: 'rejected' }).eq('application_id', appId);
+            await loadAllData();
+        }
+
+        // ========== CITIZENS ==========
+        async function loadCitizens() {
+            const { data } = await sb.from('applications').select('*').eq('status', 'approved').order('full_name');
+            allCitizens = data || [];
+            renderCitizens();
+        }
+
+        function renderCitizens() {
+            const active = allCitizens.filter(c => c.is_active === true);
+            const terminated = allCitizens.filter(c => c.is_active === false);
+            const container = document.getElementById('citizensListContainer');
+            
+            let activeHtml = '<h3>Active Citizens (' + active.length + ')</h3>';
+            if (active.length) {
+                activeHtml += '<div><table><thead><tr><th>CNIC</th><th>Name</th><th>Father</th><th>Province</th><th>Email</th><th>Action</th></tr></thead><tbody>';
+                active.forEach(c => {
+                    activeHtml += `<tr id="citizenRow_${c.application_id}">
+                        <td><strong>${c.cnic}</strong></td>
+                        <td>${c.full_name}</td>
+                        <td>${c.father_name}</td>
+                        <td>${c.province.toUpperCase()}</td>
+                        <td>${c.email}</td>
+                        <td><button id="terminateBtn_${c.application_id}" onclick="terminateCitizen('${c.application_id}')">Terminate</button></td>
+                    </tr>`;
+                });
+                activeHtml += '</tbody></table></div>';
+            } else {
+                activeHtml += '<p>No active citizens.</p>';
+            }
+            
+            let terminatedHtml = '<h3>Terminated Citizens (' + terminated.length + ')</h3>';
+            if (terminated.length) {
+                terminatedHtml += '<div><table><thead><tr><th>CNIC</th><th>Name</th><th>Father</th><th>Province</th><th>Action</th></tr></thead><tbody>';
+                terminated.forEach(c => {
+                    terminatedHtml += `<tr id="terminatedRow_${c.application_id}">
+                        <td><strong>${c.cnic}</strong></td>
+                        <td>${c.full_name}</td>
+                        <td>${c.father_name}</td>
+                        <td>${c.province.toUpperCase()}</td>
+                        <td><button id="restoreBtn_${c.application_id}" onclick="restoreCitizen('${c.application_id}')">Restore</button></td>
+                    </tr>`;
+                });
+                terminatedHtml += '</tbody></table></div>';
+            } else {
+                terminatedHtml += '<p>No terminated citizens.</p>';
+            }
+            
+            container.innerHTML = `<div>${activeHtml}</div><div>${terminatedHtml}</div>`;
+        }
+
+        async function terminateCitizen(appId) {
+            if (!confirm('Terminate this citizen?')) return;
+            await sb.from('applications').update({ is_active: false }).eq('application_id', appId);
+            await loadAllData();
+        }
+
+        async function restoreCitizen(appId) {
+            await sb.from('applications').update({ is_active: true }).eq('application_id', appId);
+            await loadAllData();
+        }
+
+        // ========== DECREES ==========
+        async function postDecree() {
+            const title = document.getElementById('decreeTitleInput').value;
+            const content = document.getElementById('decreeContentInput').value;
+            const type = document.getElementById('decreeTypeSelect').value;
+            if (!title || !content) { alert('Fill all fields'); return; }
+            await sb.from('decrees').insert([{ title, content, type, created_at: new Date().toISOString(), created_by: 'Supreme Guardian' }]);
+            alert('Decree posted');
+            document.getElementById('decreeTitleInput').value = '';
+            document.getElementById('decreeContentInput').value = '';
+            await loadDecrees();
+        }
+
+        async function loadDecrees() {
+            const { data } = await sb.from('decrees').select('*').order('created_at', { ascending: false });
+            const container = document.getElementById('decreesListContainer');
+            if (!data || data.length === 0) { container.innerHTML = '<p>No decrees yet.</p>'; return; }
+            container.innerHTML = data.map(d => `
+                <div id="decreeItem_${d.id}" class="decreeItem">
+                    <div><strong>${d.type === 'decree' ? '📜' : (d.type === 'announcement' ? '📢' : '⚖️')} ${d.title}</strong> <small>${formatLocalDate(d.created_at)} ${formatLocalTime(d.created_at)}</small></div>
+                    <p>${d.content}</p>
+                    <button id="deleteDecreeBtn_${d.id}" onclick="deleteDecree('${d.id}')">Delete</button>
+                </div>
+            `).join('');
+        }
+
+        async function deleteDecree(id) {
+            if (confirm('Delete this decree?')) { await sb.from('decrees').delete().eq('id', id); await loadDecrees(); }
+        }
+
+        // ========== PROPOSALS ==========
+        async function createProposal() {
+            const title = document.getElementById('proposalTitleInput').value;
+            const description = document.getElementById('proposalDescInput').value;
+            const endDate = document.getElementById('proposalEndDateInput').value;
+            if (!title || !description || !endDate) { alert('Fill all fields'); return; }
+            await sb.from('proposals').insert([{ title, description, end_date: endDate, created_at: new Date().toISOString(), is_active: true }]);
+            alert('Proposal created');
+            document.getElementById('proposalTitleInput').value = '';
+            document.getElementById('proposalDescInput').value = '';
+            document.getElementById('proposalEndDateInput').value = '';
+            await loadProposals();
+        }
+
+        async function loadProposals() {
+            const { data } = await sb.from('proposals').select('*').order('created_at', { ascending: false });
+            const container = document.getElementById('proposalsListContainer');
+            if (!data || data.length === 0) { container.innerHTML = '<p>No proposals yet.</p>'; return; }
+            let html = '';
+            for (const p of data) {
+                const { data: votes } = await sb.from('votes').select('vote').eq('proposal_id', p.id);
+                const yes = votes?.filter(v => v.vote === 'yes').length || 0;
+                const no = votes?.filter(v => v.vote === 'no').length || 0;
+                const abstain = votes?.filter(v => v.vote === 'abstain').length || 0;
+                html += `
+                    <div id="proposalItem_${p.id}" class="proposalItem">
+                        <h3>${p.title}</h3>
+                        <p>${p.description}</p>
+                        <small>Ends: ${new Date(p.end_date).toLocaleString()}</small>
+                        <div>Yes: ${yes} | No: ${no} | Abstain: ${abstain}</div>
+                        <button id="deleteProposalBtn_${p.id}" onclick="deleteProposal('${p.id}')">Delete</button>
+                    </div>
+                `;
+            }
+            container.innerHTML = html;
+        }
+
+        async function deleteProposal(id) {
+            if (confirm('Delete this proposal and all votes?')) {
+                await sb.from('votes').delete().eq('proposal_id', id);
+                await sb.from('proposals').delete().eq('id', id);
+                await loadProposals();
+            }
+        }
+
+        
+
+async function loadDeletionRequests() {
+    const { data } = await sb.from('deletion_requests').select('*').order('requested_at', { ascending: false });
+    const container = document.getElementById('deletionsListContainer');
+    if (!data || data.length === 0) { 
+        container.innerHTML = '<p id="noDeletionsMsg">No deletion requests.</p>'; 
+        return; 
+    }
+    
+    for (const r of data) {
+        const { data: userData } = await sb.from('applications').select('auth_user_id, email, deletion_expires_at, is_active, deletion_status, is_auth_deleted').eq('email', r.user_email).maybeSingle();
+        r.auth_user_id = userData?.auth_user_id;
+        r.user_email = userData?.email || r.user_email;
+        r.expires_at = userData?.deletion_expires_at || r.expires_at;
+        r.user_is_active = userData?.is_active || false;
+        r.deletion_status = userData?.deletion_status || 'none';
+        r.is_auth_deleted = userData?.is_auth_deleted || false;
+    }
+    
+    container.innerHTML = data.map(r => {
+        const expiryDate = new Date(r.expires_at);
+        const daysLeft = Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24));
+        const now = new Date();
+        const isExpired = now > expiryDate;
+        
+        let statusText = r.status;
+        let extraInfo = '';
+        let actionButtons = '';
+        
+        if (r.is_auth_deleted === true) {
+            statusText = 'FULLY DELETED';
+            extraInfo = '<small>Auth user deleted. Account permanently gone.</small>';
+        } else if (r.status === 'pending') {
+            if (r.user_is_active === true && r.deletion_status !== 'pending_deletion') {
+                statusText = 'CANCELLED (User Logged In)';
+                extraInfo = '<small>User logged in and cancelled deletion.</small>';
+            } else if (isExpired) {
+                statusText = 'EXPIRED (Ready for deletion)';
+                extraInfo = '<small>7-day grace period ended.</small>';
+                actionButtons = `<div><button id="deleteNowBtn_${r.id}" onclick="approveDeletion('${r.user_id}', '${r.id}', '${r.user_email}', '${r.auth_user_id || ''}', '${r.user_name}')">Delete Permanently</button></div>`;
+            } else {
+                extraInfo = `<small>User has NOT logged in yet. ${daysLeft} days remaining.</small>`;
+                actionButtons = `<div>
+                    <button id="deleteNowBtn_${r.id}" onclick="approveDeletion('${r.user_id}', '${r.id}', '${r.user_email}', '${r.auth_user_id || ''}', '${r.user_name}')">Delete Now</button> 
+                    <button id="rejectDeletionBtn_${r.id}" onclick="rejectDeletion('${r.id}')">Reject Request</button>
+                </div>`;
+            }
+        }
+        
+        return `
+            <div id="requestItem_${r.id}" class="requestItem">
+                <div><strong>${r.user_name}</strong> <span>(${r.user_email})</span></div>
+                <div>Requested: ${new Date(r.requested_at).toLocaleString()}</div>
+                <div>Expires: ${expiryDate.toLocaleDateString()} (${daysLeft} days left)</div>
+                <div>Status: <span id="statusBadge_${r.id}">${statusText}</span></div>
+                ${extraInfo}
+                ${actionButtons}
+                <div id="deletionMessage_${r.id}" style="margin-top: 10px; padding: 8px; border-radius: 8px; display: none;"></div>
+            </div>
+        `;
+    }).join('');
+}
+
+
+
+async function approveDeletion(userId, requestId, userEmail, authUserId, userName) {
+    const messageDiv = document.getElementById(`deletionMessage_${requestId}`);
+    
+    if (!confirm(`⚠️ WARNING: This will PERMANENTLY DELETE ${userName}'s account. The user will NEVER be able to log in again, but CAN create a NEW account with the same email. Continue?`)) {
+        return;
+    }
+    
+    messageDiv.style.display = 'block';
+    messageDiv.style.background = '#E3F2FD';
+    messageDiv.innerHTML = '⏳ Deleting account permanently...';
+    
+    try {
+        const btn = document.getElementById(`deleteNowBtn_${requestId}`);
+        if (btn) btn.disabled = true;
+        
+        // Step 1: Delete user data from your tables
+        await sb.from('citizen_messages').delete().eq('user_email', userEmail);
+        await sb.from('votes').delete().eq('citizen_email', userEmail);
+        
+        if (authUserId) {
+            try {
+                await sb.from('profile_pictures').delete().eq('user_id', authUserId);
+            } catch(e) {}
+            await sb.from('applications').delete().eq('auth_user_id', authUserId);
+        } else {
+            await sb.from('applications').delete().eq('email', userEmail);
+        }
+        
+        // Step 2: Delete Supabase Auth user using Edge Function (USE THE GLOBAL VARIABLE, DON'T REDECLARE)
+        if (authUserId) {
+            try {
+                const response = await fetch(EDGE_FUNCTION_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ user_id: authUserId })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    messageDiv.style.background = '#E8F5E9';
+                    messageDiv.style.color = '#2E8B57';
+                    messageDiv.innerHTML = `✅ Account for ${userEmail} has been PERMANENTLY DELETED.<br>User can create a NEW account with the same email.`;
+                } else {
+                    messageDiv.style.background = '#FFEBEE';
+                    messageDiv.style.color = '#E63946';
+                    messageDiv.innerHTML = `⚠️ Data deleted but Auth deletion failed: ${result.error}`;
+                }
+            } catch (authError) {
+                messageDiv.style.background = '#FFEBEE';
+                messageDiv.innerHTML = '⚠️ Account data deleted. Please manually delete user from Supabase Dashboard → Authentication → Users to allow re-signup.';
+            }
+        } else {
+            messageDiv.style.background = '#E8F5E9';
+            messageDiv.innerHTML = `✅ User data for ${userEmail} has been deleted.`;
+        }
+        
+        // Step 3: Update deletion request
+        await sb.from('deletion_requests').update({ 
+            status: 'approved', 
+            reviewed_at: new Date().toISOString(), 
+            reviewed_by: 'Supreme Guardian' 
+        }).eq('id', requestId);
+        
+        await loadDeletionRequests();
+        await loadAllData();
+        
+    } catch (error) {
+        console.error('Deletion error:', error);
+        messageDiv.style.background = '#FFEBEE';
+        messageDiv.innerHTML = '❌ Error during deletion: ' + error.message;
+    }
+}
+
+async function rejectDeletion(requestId) {
+    const messageDiv = document.getElementById(`deletionMessage_${requestId}`);
+    
+    if (!confirm('Reject this deletion request?')) return;
+    
+    messageDiv.style.display = 'block';
+    messageDiv.style.background = '#FFF3E0';
+    messageDiv.style.color = '#F4A261';
+    messageDiv.innerHTML = '⏳ Rejecting request...';
+    
+    try {
+        await sb.from('deletion_requests').update({ 
+            status: 'rejected', 
+            reviewed_at: new Date().toISOString(), 
+            reviewed_by: 'Supreme Guardian' 
+        }).eq('id', requestId);
+        
+        const { data: reqData } = await sb.from('deletion_requests').select('user_email').eq('id', requestId).single();
+        if (reqData) {
+            await sb.from('applications').update({
+                deletion_status: 'none',
+                deletion_requested_at: null,
+                deletion_expires_at: null,
+                is_active: true
+            }).eq('email', reqData.user_email);
+        }
+        
+        messageDiv.style.background = '#E8F5E9';
+        messageDiv.style.color = '#2E8B57';
+        messageDiv.innerHTML = '✅ Deletion request rejected. Account restored.';
+        
+        await loadDeletionRequests();
+        
+    } catch (error) {
+        messageDiv.style.background = '#FFEBEE';
+        messageDiv.style.color = '#E63946';
+        messageDiv.innerHTML = '❌ Error: ' + error.message;
+    }
+}
+
+        // ========== ANALYTICS ==========
+        async function loadAnalytics() {
+            const { data } = await sb.from('website_visits').select('*').order('visited_at', { ascending: false });
+            allVisits = data || [];
+            
+            if (visitsChart) visitsChart.destroy();
+            if (deviceChart) deviceChart.destroy();
+            if (provinceChart) provinceChart.destroy();
+            
+            const last7 = [];
+            for (let i = 6; i >= 0; i--) { const d = new Date(); d.setDate(d.getDate() - i); last7.push(d.toDateString()); }
+            const counts = last7.map(day => allVisits.filter(v => new Date(v.visited_at).toDateString() === day).length);
+            const ctx1 = document.getElementById('visitsChartCanvas')?.getContext('2d');
+            if (ctx1) {
+                visitsChart = new Chart(ctx1, { type: 'line', data: { labels: last7.map(d => d.slice(0,10)), datasets: [{ label: 'Visits', data: counts, borderColor: '#3B82F6', fill: true }] }, options: { responsive: true } });
+            }
+            
+            const devices = { Desktop: 0, Mobile: 0, Tablet: 0 };
+            allVisits.forEach(v => { if (v.device === 'Desktop') devices.Desktop++; else if (v.device === 'Mobile') devices.Mobile++; else devices.Tablet++; });
+            const ctx2 = document.getElementById('deviceChartCanvas')?.getContext('2d');
+            if (ctx2) {
+                deviceChart = new Chart(ctx2, { type: 'doughnut', data: { labels: ['Desktop', 'Mobile', 'Tablet'], datasets: [{ data: [devices.Desktop, devices.Mobile, devices.Tablet], backgroundColor: ['#3B82F6', '#10B981', '#F59E0B'] }] } });
+            }
+            
+            const { data: citizens } = await sb.from('applications').select('province').eq('status', 'approved').eq('is_active', true);
+            const pr1 = citizens?.filter(c => c.province === 'pr1').length || 0;
+            const pr2 = citizens?.filter(c => c.province === 'pr2').length || 0;
+            const pr3 = citizens?.filter(c => c.province === 'pr3').length || 0;
+            const ctx3 = document.getElementById('provinceChartCanvas')?.getContext('2d');
+            if (ctx3) {
+                provinceChart = new Chart(ctx3, { type: 'bar', data: { labels: ['PR1', 'PR2', 'PR3'], datasets: [{ label: 'Citizens', data: [pr1, pr2, pr3], backgroundColor: '#3B82F6' }] }, options: { responsive: true } });
+            }
+            
+            document.getElementById('recentVisitorsList').innerHTML = `
+                <table>
+                    <thead><tr><th>Time</th><th>IP</th><th>Page</th><th>Device</th></tr></thead>
+                    <tbody>${allVisits.slice(0,20).map(v => `<tr><td>${new Date(v.visited_at).toLocaleString()}</td><td>${v.ip_address || '-'}</td><td>${v.page_visited || '-'}</td><td>${v.device || '-'}</td></tr>`).join('')}</tbody>
+                </table>
+            `;
+        }
+
+        async function clearAnalytics() {
+            if (confirm('Delete all analytics data?')) { await sb.from('website_visits').delete().neq('id', 0); await loadAnalytics(); alert('Analytics cleared'); }
+        }
+
+        async function updateStats() {
+            const pending = allApplications.filter(a => a.status === 'pending' || a.status === 'pending_profile').length;
+            const active = allApplications.filter(a => a.status === 'approved' && a.is_active === true).length;
+            const terminated = allApplications.filter(a => a.status === 'approved' && a.is_active === false).length;
+            const { count: votes } = await sb.from('votes').select('*', { count: 'exact', head: true });
+            document.getElementById('statPendingNumber').innerText = pending;
+            document.getElementById('statActiveNumber').innerText = active;
+            document.getElementById('statTerminatedNumber').innerText = terminated;
+            document.getElementById('statTotalNumber').innerText = allApplications.length;
+            document.getElementById('statVotesNumber').innerText = votes || 0;
+            document.getElementById('statVisitsNumber').innerText = allVisits.length;
+        }
+
+        // ========== TAB SWITCHING ==========
+        function switchTab(tabName) {
+            document.querySelectorAll('.tabContent').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.adminTab').forEach(tab => tab.classList.remove('active'));
+            
+            document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Content`).classList.add('active');
+            document.getElementById(`tab${tabName.charAt(0).toUpperCase() + tabName.slice(1)}Btn`).classList.add('active');
+        }
+
+        // ========== NAVIGATION UPDATE ==========
+        async function updateAdminNav() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('auth-nav-item');
+            if (!authNav) return;
+            
+            if (session) {
+                const isAdmin = session.user.email === ADMIN_EMAIL;
+                authNav.innerHTML = `<div><a href="profile.html">Profile</a>${isAdmin ? '<a href="admin.html">Admin</a>' : ''}<a href="#" onclick="logout()">Logout</a></div>`;
+            } else {
+                authNav.innerHTML = '<a href="login.html">Login</a>';
+            }
+        }
+
+        window.logout = async function() { await sb.auth.signOut(); location.reload(); };
+
+        // ========== EVENT LISTENERS ==========
+        document.getElementById('adminLoginBtn').addEventListener('click', login);
+        document.getElementById('postDecreeBtn').addEventListener('click', postDecree);
+        document.getElementById('createProposalBtn').addEventListener('click', createProposal);
+        document.getElementById('clearAnalyticsBtn').addEventListener('click', clearAnalytics);
+        
+        document.getElementById('tabApplicationsBtn').addEventListener('click', () => switchTab('applications'));
+        document.getElementById('tabCitizensBtn').addEventListener('click', () => switchTab('citizens'));
+        document.getElementById('tabDecreesBtn').addEventListener('click', () => switchTab('decrees'));
+        document.getElementById('tabProposalsBtn').addEventListener('click', () => switchTab('proposals'));
+        document.getElementById('tabDeletionsBtn').addEventListener('click', () => switchTab('deletions'));
+        document.getElementById('tabAnalyticsBtn').addEventListener('click', () => switchTab('analytics'));
+
+        // Search filters
+        document.getElementById('applicationsSearchInput').addEventListener('keyup', function() {
+            const term = this.value.toLowerCase();
+            document.querySelectorAll('.applicationCard').forEach(card => {
+                card.style.display = card.innerText.toLowerCase().includes(term) ? 'block' : 'none';
+            });
+        });
+        
+        document.getElementById('citizensSearchInput').addEventListener('keyup', function() {
+            const term = this.value.toLowerCase();
+            document.querySelectorAll('#citizensListContainer tr').forEach(row => {
+                if (row.style) row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none';
+            });
+        });
+
+        // Check if already logged in
+        if (localStorage.getItem('rooftopia_admin_logged_in') === 'true') {
+            document.getElementById('adminLoginBox').style.display = 'none';
+            document.getElementById('adminContentContainer').style.display = 'block';
+            loadAllData();
+        }
+        
+        updateAdminNav();
+        
+        // Mobile hamburger menu
+        document.getElementById('adminHamburgerBtn')?.addEventListener('click', function() {
+            document.getElementById('adminNavLinks')?.classList.toggle('show');
+        });
+    </script>
+</body>
+</html>

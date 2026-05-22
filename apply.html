@@ -1,0 +1,456 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Apply for Citizenship | Rooftopia</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
+</head>
+<body>
+    <nav id="mainNavigation">
+    <div id="navContainer">
+        <div id="logoContainer">
+            <a href="index.html" id="logoLink">Rooftopia</a>
+        </div>
+        <button id="hamburgerMenuBtn">
+            <span id="hamburgerLine1"></span>
+            <span id="hamburgerLine2"></span>
+            <span id="hamburgerLine3"></span>
+        </button>
+        <ul id="navLinksList">
+            <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+            <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+            <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+            <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+            <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+        </ul>
+    </div>
+</nav>
+
+    <div class="apply-container">
+        <div id="loginRequired" class="login-required" style="display: none;">
+            <div class="form-card">
+                <div class="form-header">
+                    <h1>🔒 Login Required</h1>
+                    <p>You need to be logged in to apply for citizenship</p>
+                </div>
+                <div class="form-body">
+                    <a href="login.html" class="btn btn-primary">Go to Login →</a>
+                    <p>Don't have an account? <a href="signup.html">Sign up here</a></p>
+                </div>
+            </div>
+        </div>
+
+        <div id="applicationForm" style="display: none;">
+            <div class="form-card">
+                <div class="form-header">
+                    <h1>📝 Apply for Citizenship</h1>
+                    <p>Join the Republic of Rooftopia — "Above the Ordinary"</p>
+                </div>
+                <div class="form-body">
+                    <div id="alertBox" class="alert"></div>
+                    
+                    <form id="citizenForm">
+                        <!-- Photo Upload -->
+                        <div class="form-group">
+                            <label>Passport Photo <span class="required">*</span></label>
+                            <div class="photo-upload-area" onclick="document.getElementById('photoInput').click()">
+                                <div class="upload-icon">📸</div>
+                                <p>Click to upload your photo</p>
+                                <small>JPG or PNG, max 2MB</small>
+                                <input type="file" id="photoInput" accept="image/jpeg,image/png" style="display:none" onchange="previewPhoto(this)">
+                            </div>
+                            <div class="photo-preview" id="photoPreview">
+                                <img id="previewImg" alt="Preview">
+                                <p>Photo preview</p>
+                            </div>
+                        </div>
+
+                        <!-- Two Column Layout -->
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Full Name <span class="required">*</span></label>
+                                <input type="text" id="fullName" required placeholder="e.g., John Alexander Smith">
+                            </div>
+                            <div class="form-group">
+                                <label>Father's Name <span class="required">*</span></label>
+                                <input type="text" id="fatherName" required placeholder="e.g., Robert Smith">
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Date of Birth <span class="required">*</span></label>
+                                <input type="date" id="dob" required>
+                            </div>
+                            <div class="form-group">
+                                <label>Gender <span class="required">*</span></label>
+                                <div class="gender-group">
+                                    <label><input type="radio" name="gender" value="Male" required> Male</label>
+                                    <label><input type="radio" name="gender" value="Female"> Female</label>
+                                    <label><input type="radio" name="gender" value="Transgender"> Transgender</label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label>Email Address <span class="required">*</span></label>
+                                <input type="email" id="email" required placeholder="you@example.com">
+                                <small>This should match your login email</small>
+                            </div>
+                            <div class="form-group">
+                                <label>Current Country <span class="required">*</span></label>
+                                <input type="text" id="currentCountry" required placeholder="e.g., United States, India, UK">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Select Your Province <span class="required">*</span></label>
+                            <select id="province" required>
+                                <option value="">-- Select a Province --</option>
+                                <option value="pr1">🏙️ PR1 Province (Urban Hub)</option>
+                                <option value="pr2">🌾 PR2 Province (Agricultural Heartland)</option>
+                                <option value="pr3">🏜️ PR3 Province (Mystic Sands)</option>
+                            </select>
+                        </div>
+
+                        <div class="form-group">
+                            <label>Why do you want Rooftopian citizenship? <span class="required">*</span></label>
+                            <textarea id="reason" rows="4" required placeholder="Tell us why you want to become a citizen of Rooftopia..."></textarea>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary submit-btn" id="submitBtn">
+                            Submit Application →
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>Republic of Rooftopia</h4>
+                <p>"Above the Ordinary"<br>Est. 2026</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="apply.html">Apply</a></li>
+                    <li><a href="dashboard.html">Dashboard</a></li>
+                    <li><a href="about.html">About</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Contact</h4>
+                <p>📧 hello@rooftopia.gov</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2026 Republic of Rooftopia — "Above the Ordinary"</p>
+        </div>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const ADMIN_EMAIL = 'ahadalihaider69@gmail.com';
+        
+        emailjs.init("yc1wK3daOfUYQaHE6");
+        
+        let uploadedPhotoFile = null;
+        let currentUser = null;
+
+        async function checkAuth() {
+            const { data: { session } } = await sb.auth.getSession();
+            const loginRequiredDiv = document.getElementById('loginRequired');
+            const applicationFormDiv = document.getElementById('applicationForm');
+            
+            if (!session) {
+                loginRequiredDiv.style.display = 'block';
+                applicationFormDiv.style.display = 'none';
+                return false;
+            }
+            
+            currentUser = session.user;
+            loginRequiredDiv.style.display = 'none';
+            applicationFormDiv.style.display = 'block';
+            
+            document.getElementById('email').value = currentUser.email;
+            document.getElementById('email').readOnly = true;
+            
+            const { data: existing } = await sb.from('applications').select('status').eq('auth_user_id', currentUser.id).maybeSingle();
+            if (existing && existing.status !== 'rejected') {
+                document.getElementById('citizenForm').style.display = 'none';
+                document.getElementById('alertBox').innerHTML = `<div class="alert info">📋 You have already submitted an application. Status: ${existing.status.toUpperCase()}</div>`;
+                document.getElementById('alertBox').style.display = 'block';
+            }
+            return true;
+        }
+
+        function previewPhoto(input) {
+            if (input.files && input.files[0]) {
+                const file = input.files[0];
+                if (file.size > 2 * 1024 * 1024) {
+                    showAlert('Photo must be less than 2MB', 'error');
+                    input.value = '';
+                    return;
+                }
+                uploadedPhotoFile = file;
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    document.getElementById('previewImg').src = e.target.result;
+                    document.getElementById('photoPreview').style.display = 'block';
+                };
+                reader.readAsDataURL(file);
+            }
+        }
+
+        async function uploadPhoto(file, email) {
+            const fileName = `${email.replace(/[^a-zA-Z0-9]/g, '_')}_${Date.now()}.jpg`;
+            const { error } = await sb.storage.from('citizen-photos').upload(fileName, file, { upsert: true });
+            if (error) {
+                console.error('Upload error:', error);
+                return null;
+            }
+            const { data: publicUrl } = sb.storage.from('citizen-photos').getPublicUrl(fileName);
+            return publicUrl.publicUrl;
+        }
+
+        function generateApplicationID() {
+            return 'APP-' + Date.now() + '-' + Math.floor(Math.random() * 10000);
+        }
+
+        function showAlert(msg, type) {
+            const box = document.getElementById('alertBox');
+            box.textContent = msg;
+            box.className = `alert ${type}`;
+            box.style.display = 'block';
+            setTimeout(() => {
+                box.style.display = 'none';
+                box.className = 'alert';
+            }, 5000);
+        }
+
+        async function sendApplicationReceivedEmail(email, name, applicationId, province) {
+            try {
+                const result = await emailjs.send('service_8z50aj8', 'template_qoidzii', {
+                    to_email: email,
+                    applicant_name: name,
+                    application_id: applicationId,
+                    province: province.toUpperCase(),
+                    submission_date: new Date().toLocaleDateString()
+                });
+                console.log('Email sent successfully:', result);
+                return true;
+            } catch (error) {
+                console.error('EmailJS error:', error);
+                return false;
+            }
+        }
+
+        document.getElementById('citizenForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            if (!uploadedPhotoFile) {
+                showAlert('Please upload a passport photo', 'error');
+                return;
+            }
+
+            const submitBtn = document.getElementById('submitBtn');
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '⏳ Submitting...';
+            
+            try {
+                const fullName = document.getElementById('fullName').value;
+                const fatherName = document.getElementById('fatherName').value;
+                const dob = document.getElementById('dob').value;
+                const gender = document.querySelector('input[name="gender"]:checked').value;
+                const email = document.getElementById('email').value;
+                const currentCountry = document.getElementById('currentCountry').value;
+                const province = document.getElementById('province').value;
+                const reason = document.getElementById('reason').value;
+                const applicationID = generateApplicationID();
+                
+                showAlert('Uploading photo...', 'info');
+                const photoUrl = await uploadPhoto(uploadedPhotoFile, email);
+                
+                if (!photoUrl) {
+                    showAlert('Photo upload failed', 'error');
+                    submitBtn.disabled = false;
+                    submitBtn.innerHTML = 'Submit Application →';
+                    return;
+                }
+                
+                showAlert('Saving application...', 'info');
+                
+                const { data: existing } = await sb.from('applications').select('id').eq('auth_user_id', currentUser.id).maybeSingle();
+                
+                let error;
+                if (existing) {
+                    const { error: updateError } = await sb.from('applications').update({
+                        full_name: fullName,
+                        father_name: fatherName,
+                        dob: dob,
+                        gender: gender,
+                        current_country: currentCountry,
+                        province: province,
+                        reason: reason,
+                        photo: photoUrl,
+                        status: 'pending',
+                        submitted_at: new Date().toISOString()
+                    }).eq('auth_user_id', currentUser.id);
+                    error = updateError;
+                } else {
+                    const { error: insertError } = await sb.from('applications').insert([{
+                        application_id: applicationID,
+                        full_name: fullName,
+                        father_name: fatherName,
+                        dob: dob,
+                        gender: gender,
+                        email: email,
+                        current_country: currentCountry,
+                        province: province,
+                        reason: reason,
+                        photo: photoUrl,
+                        status: 'pending',
+                        is_active: true,
+                        submitted_at: new Date().toISOString(),
+                        auth_user_id: currentUser.id
+                    }]);
+                    error = insertError;
+                }
+                
+                if (error) throw error;
+                
+                showAlert('Sending confirmation email...', 'info');
+                await sendApplicationReceivedEmail(email, fullName, applicationID, province);
+                
+                showAlert('✅ Application submitted successfully!', 'success');
+                document.getElementById('citizenForm').reset();
+                document.getElementById('photoPreview').style.display = 'none';
+                uploadedPhotoFile = null;
+                document.getElementById('citizenForm').style.display = 'none';
+                document.getElementById('alertBox').innerHTML = '<div class="alert success">✅ Your application has been submitted! The Supreme Guardian will review it soon.</div>';
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showAlert('❌ Submission failed: ' + error.message, 'error');
+            } finally {
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = 'Submit Application →';
+            }
+        });
+
+        async function checkAuthAndUpdateNav() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('auth-nav-item');
+            
+            if (session) {
+                const isAdmin = session.user.email === ADMIN_EMAIL;
+                let profilePicUrl = null;
+                const { data: picData } = await sb.from('profile_pictures').select('photo_url').eq('user_id', session.user.id).maybeSingle();
+                if (picData && picData.photo_url) profilePicUrl = picData.photo_url;
+                
+                authNav.innerHTML = `
+                    <div class="profile-dropdown">
+                        <div class="profile-icon">
+                            ${profilePicUrl ? `<img src="${profilePicUrl}" alt="Profile">` : '<span>👤</span>'}
+                        </div>
+                        <div class="dropdown-menu">
+                            <a href="profile.html">My Profile</a>
+                            ${isAdmin ? '<a href="admin.html">Admin Panel</a>' : ''}
+                            <a href="#" onclick="logout()">Logout</a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                authNav.innerHTML = '<a href="login.html">Login</a>';
+            }
+        }
+
+        window.logout = async function() { 
+            await sb.auth.signOut(); 
+            location.reload(); 
+        };
+        
+        checkAuth();
+        checkAuthAndUpdateNav();
+        
+        document.querySelector('.hamburger')?.addEventListener('click', function() {
+            document.querySelector('.nav-links')?.classList.toggle('show');
+        });
+        
+
+    async function updateNavigation() {
+        const { data: { session } } = await sb.auth.getSession();
+        const authNav = document.getElementById('authNavContainer');
+        
+        if (!authNav) {
+            console.log('authNavContainer not found on this page');
+            return;
+        }
+        
+        if (session) {
+            const isAdmin = session.user.email === ADMIN_EMAIL;
+            let profilePicUrl = null;
+            
+            try {
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+            } catch(e) {
+                console.log('Error fetching profile picture:', e);
+            }
+            
+            const profileIconHtml = profilePicUrl 
+                ? `<img src="${profilePicUrl}" id="profileNavImg" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+                : `<span id="profileNavIcon">👤</span>`;
+            
+            authNav.innerHTML = `
+                <div id="profileDropdownContainer" class="profileDropdown">
+                    <div id="profileDropdownIcon" class="profileIcon">
+                        ${profileIconHtml}
+                    </div>
+                    <div id="profileDropdownMenu" class="dropdownMenu">
+                        <a href="profile.html" id="dropdownProfileLink">My Profile</a>
+                        ${isAdmin ? '<a href="admin.html" id="dropdownAdminLink">Admin Panel</a>' : ''}
+                        <a href="#" id="dropdownLogoutLink" onclick="logout()">Logout</a>
+                    </div>
+                </div>
+            `;
+        } else {
+            authNav.innerHTML = '<a href="login.html" id="navLoginLink">Login</a>';
+        }
+    }
+
+    window.logout = async function() { 
+        await sb.auth.signOut(); 
+        window.location.href = 'login.html';
+    };
+
+    // Update navigation when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        updateNavigation();
+    });
+    
+    // Also update when auth state changes (in case user logs in/out from another tab)
+    sb.auth.onAuthStateChange(function(event, session) {
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+            updateNavigation();
+        }
+    });
+    </script>
+</body>
+</html>

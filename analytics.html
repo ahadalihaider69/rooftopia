@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Traffic Analytics | Admin</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav id="mainNavigation">
+    <div id="navContainer">
+        <div id="logoContainer">
+            <a href="index.html" id="logoLink">Rooftopia</a>
+        </div>
+        <button id="hamburgerMenuBtn">
+            <span id="hamburgerLine1"></span>
+            <span id="hamburgerLine2"></span>
+            <span id="hamburgerLine3"></span>
+        </button>
+        <ul id="navLinksList">
+            <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+            <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+            <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+            <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+            <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+        </ul>
+    </div>
+</nav>
+
+    <div class="admin-container">
+        <div id="loginRequired" style="display: none;">
+            <div class="stat-card" style="text-align:center; padding:40px;">
+                <h2>🔒 Admin Access Required</h2>
+                <p>Please login to the admin panel first.</p>
+                <a href="admin.html" class="btn btn-primary">Go to Admin Login</a>
+            </div>
+        </div>
+
+        <div id="analyticsContent">
+            <h1>📊 Website Traffic Analytics</h1>
+            <button class="btn clear-btn" onclick="clearAnalytics()">🗑️ Clear All Analytics Data</button>
+
+            <div class="stats-grid" id="statsGrid"></div>
+
+            <div class="chart-container">
+                <h3>📈 Page Views (Last 7 Days)</h3>
+                <canvas id="visitsChart"></canvas>
+            </div>
+
+            <div class="chart-container">
+                <h3>🌍 Device & Browser Distribution</h3>
+                <canvas id="deviceChart"></canvas>
+            </div>
+
+            <div class="stat-card">
+                <h3>📋 Recent Visitors</h3>
+                <div class="visitors-table">
+                    <table id="visitorsTable">
+                        <thead>
+                            <tr><th>Time</th><th>IP Address</th><th>Page</th><th>Device</th><th>Browser</th></tr>
+                        </thead>
+                        <tbody id="visitorsList"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        
+        const supabase = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        const isAdminLoggedIn = localStorage.getItem('rooftopia_admin_logged_in') === 'true';
+        
+        if (!isAdminLoggedIn) {
+            document.getElementById('loginRequired').style.display = 'block';
+            document.getElementById('analyticsContent').style.display = 'none';
+        } else {
+            document.getElementById('loginRequired').style.display = 'none';
+            document.getElementById('analyticsContent').style.display = 'block';
+            loadAnalytics();
+        }
+
+        async function loadAnalytics() {
+            const { data: visits, error } = await supabase
+                .from('website_visits')
+                .select('*')
+                .order('visited_at', { ascending: false });
+            
+            if (error) {
+                console.error('Error loading analytics:', error);
+                return;
+            }
+            
+            // Calculate stats
+            const totalVisits = visits.length;
+            const uniqueVisitors = new Set(visits.map(v => v.visitor_id)).size;
+            const todayVisits = visits.filter(v => {
+                const visitDate = new Date(v.visited_at).toDateString();
+                const today = new Date().toDateString();
+                return visitDate === today;
+            }).length;
+            
+            // Get total citizens
+            const { data: citizens } = await supabase
+                .from('applications')
+                .select('*', { count: 'exact' })
+                .eq('status', 'approved')
+                .eq('is_active', true);
+            
+            document.getElementById('statsGrid').innerHTML = `
+                <div class="stat-card"><div class="stat-number">${totalVisits}</div><div>Total Visits</div></div>
+                <div class="stat-card"><div class="stat-number">${uniqueVisitors}</div><div>Unique Visitors</div></div>
+                <div class="stat-card"><div class="stat-number">${todayVisits}</div><div>Today's Visits</div></div>
+                <div class="stat-card"><div class="stat-number">${citizens?.length || 0}</div><div>Active Citizens</div></div>
+            `;
+            
+            // Last 7 days chart
+            const last7Days = [];
+            for (let i = 6; i >= 0; i--) {
+                const date = new Date();
+                date.setDate(date.getDate() - i);
+                last7Days.push(date.toDateString());
+            }
+            
+            const dailyCounts = last7Days.map(day => {
+                return visits.filter(v => new Date(v.visited_at).toDateString() === day).length;
+            });
+            
+            new Chart(document.getElementById('visitsChart'), {
+                type: 'line',
+                data: {
+                    labels: last7Days.map(d => d.slice(0, 10)),
+                    datasets: [{
+                        label: 'Visits',
+                        data: dailyCounts,
+                        borderColor: '#6C63FF',
+                        backgroundColor: 'rgba(108, 99, 255, 0.1)',
+                        fill: true,
+                        tension: 0.3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: { legend: { labels: { color: '#B8B8D0' } } }
+                }
+            });
+            
+            // Device distribution
+            const devices = { Desktop: 0, Mobile: 0, Tablet: 0 };
+            const browsers = {};
+            
+            visits.forEach(v => {
+                if (v.device) devices[v.device] = (devices[v.device] || 0) + 1;
+                if (v.browser) browsers[v.browser] = (browsers[v.browser] || 0) + 1;
+            });
+            
+            new Chart(document.getElementById('deviceChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Desktop', 'Mobile', 'Tablet'],
+                    datasets: [{
+                        data: [devices.Desktop, devices.Mobile, devices.Tablet],
+                        backgroundColor: ['#6C63FF', '#E8A87C', '#00B4D8']
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: { legend: { labels: { color: '#B8B8D0' } } }
+                }
+            });
+            
+            // Recent visitors
+            const recentVisits = visits.slice(0, 50);
+            document.getElementById('visitorsList').innerHTML = recentVisits.map(v => `
+                <tr>
+                    <td>${new Date(v.visited_at).toLocaleString()}</td>
+                    <td>${v.ip_address || 'Unknown'}</td>
+                    <td>${v.page_visited || 'Unknown'}</td>
+                    <td>${v.device || 'Unknown'}</td>
+                    <td>${v.browser || 'Unknown'}</td>
+                </tr>
+            `).join('');
+        }
+
+        async function clearAnalytics() {
+            if (confirm('⚠️ Delete ALL analytics data? This cannot be undone.')) {
+                await supabase.from('website_visits').delete().neq('id', 0);
+                loadAnalytics();
+                alert('Analytics data cleared.');
+            }
+        }
+
+        document.querySelector('.hamburger')?.addEventListener('click', function() {
+            document.querySelector('.nav-links')?.classList.toggle('show');
+        });
+    </script>
+</body>
+</html>

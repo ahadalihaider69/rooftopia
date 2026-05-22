@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Events | Rooftopia</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <nav id="mainNavigation">
+        <div id="navContainer">
+            <div id="logoContainer">
+                <a href="index.html" id="logoLink">Rooftopia</a>
+            </div>
+            <button id="hamburgerMenuBtn">
+                <span id="hamburgerLine1"></span>
+                <span id="hamburgerLine2"></span>
+                <span id="hamburgerLine3"></span>
+            </button>
+            <ul id="navLinksList">
+                <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+                <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+                <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+                <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+                <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="hero" style="padding: 40px 20px;">
+        <h1>📅 Upcoming Events</h1>
+        <p class="tagline">Join us for ceremonies, festivals, and gatherings</p>
+    </div>
+
+    <div style="max-width: 900px; margin: 0 auto; padding: 0 20px;">
+        <!-- Event content here -->
+        <div class="section">
+            <h2>🌅 Sunset Ceremony</h2>
+            <p>Every Friday at 6:00 PM</p>
+        </div>
+    </div>
+
+    <footer id="mainFooter">
+        <div id="footerContentContainer">
+            <div id="footerAboutSection" class="footerSection">
+                <h4>Republic of Rooftopia</h4>
+                <p>"Above the Ordinary"<br>Est. 2026</p>
+            </div>
+            <div id="footerLinksSection" class="footerSection">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="apply.html">Apply</a></li>
+                    <li><a href="dashboard.html">Dashboard</a></li>
+                    <li><a href="about.html">About</a></li>
+                </ul>
+            </div>
+            <div id="footerContactSection" class="footerSection">
+                <h4>Contact</h4>
+                <p>hello@rooftopia.gov</p>
+            </div>
+        </div>
+        <div id="footerBottomContainer">
+            <p>© 2026 Republic of Rooftopia — "Above the Ordinary"</p>
+        </div>
+    </footer>
+
+    <script src="js/nav.js"></script>
+    <script>
+        // Page-specific JavaScript here
+        // Mobile Hamburger Menu
+        const hamburgerBtn = document.getElementById('hamburgerMenuBtn');
+        const navLinks = document.getElementById('navLinksList');
+
+        if (hamburgerBtn && navLinks) {
+            hamburgerBtn.addEventListener('click', function() {
+                this.classList.toggle('active');
+                navLinks.classList.toggle('show');
+            });
+        }
+    </script>
+</body>
+</html>

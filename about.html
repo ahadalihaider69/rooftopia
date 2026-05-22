@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>About | Rooftopia</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav id="mainNavigation">
+    <nav id="mainNavigation">
+    <div id="navContainer">
+        <div id="logoContainer">
+            <a href="index.html" id="logoLink">Rooftopia</a>
+        </div>
+        <button id="hamburgerMenuBtn">
+            <span id="hamburgerLine1"></span>
+            <span id="hamburgerLine2"></span>
+            <span id="hamburgerLine3"></span>
+        </button>
+        <ul id="navLinksList">
+            <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+            <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+            <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+            <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+            <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+        </ul>
+    </div>
+</nav>
+
+    <div class="hero">
+        <h1>About Rooftopia</h1>
+        <p class="tagline">Learn about our nation, provinces, and values</p>
+    </div>
+
+    <div style="max-width: 900px; margin: 0 auto; padding: 0 20px;">
+        <div class="section">
+            <h2>🏛️ Our Nation</h2>
+            <p>Rooftopia is a model micronation founded on April 20, 2026. Located 15 meters above street level, we are a sovereign nation dedicated to community, creativity, and democratic values. Our motto, "Above the Ordinary," reflects our commitment to excellence and innovation.</p>
+        </div>
+
+        <div class="section">
+            <h2>🏙️ Our Provinces</h2>
+            <div class="province-grid">
+                <div class="province-card">
+                    <h3>🏙️ PR1 Province</h3>
+                    <p>The urban hub of Rooftopia. Home to diplomatic centers, rooftop cafes, and the Supreme Guardian's office.</p>
+                </div>
+                <div class="province-card">
+                    <h3>🌾 PR2 Province</h3>
+                    <p>The agricultural heartland. Known for community gardens, herb cultivation, and traditional values.</p>
+                </div>
+                <div class="province-card">
+                    <h3>🏜️ PR3 Province</h3>
+                    <p>The mystic lands. Famous for solar energy zones, desert landscapes, and ancient rooftop secrets.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h2>📜 Our Values</h2>
+            <ul>
+                <li><strong>Democracy</strong> - Every citizen's voice matters</li>
+                <li><strong>Community</strong> - We grow together</li>
+                <li><strong>Innovation</strong> - Always looking above the ordinary</li>
+                <li><strong>Sustainability</strong> - Green energy and plant cultivation</li>
+            </ul>
+        </div>
+
+        <div class="section" style="text-align: center;">
+            <h2>🤝 Join Us</h2>
+            <p>Rooftopia is always open to new citizens who share our values. Apply for citizenship today and become part of our growing community!</p>
+            <div style="margin-top: 20px;">
+                <a href="apply.html" class="btn btn-primary">Apply Now →</a>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section">
+                <h4>Republic of Rooftopia</h4>
+                <p>"Above the Ordinary"<br>Est. 2026</p>
+            </div>
+            <div class="footer-section">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="apply.html">Apply</a></li>
+                    <li><a href="dashboard.html">Dashboard</a></li>
+                    <li><a href="about.html">About</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Contact</h4>
+                <p>📧 hello@rooftopia.gov</p>
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <p>© 2026 Republic of Rooftopia — "Above the Ordinary"</p>
+        </div>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const ADMIN_EMAIL = 'ahadalihaider69@gmail.com';
+
+        async function checkAuthAndUpdateNav() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('auth-nav-item');
+            
+            if (session) {
+                const isAdmin = session.user.email === ADMIN_EMAIL;
+                let profilePicUrl = null;
+                
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+                
+                const profileIconHtml = profilePicUrl 
+                    ? `<img src="${profilePicUrl}" class="profile-nav-img">`
+                    : `<span>👤</span>`;
+                
+                authNav.innerHTML = `
+                    <div class="profile-dropdown">
+                        <div class="profile-icon" id="profileIcon">
+                            ${profileIconHtml}
+                        </div>
+                        <div class="dropdown-menu" id="dropdownMenu">
+                            <a href="profile.html">👤 My Profile</a>
+                            ${isAdmin ? '<a href="admin.html">🔐 Admin Panel</a>' : ''}
+                            <a href="#" onclick="logout()">🚪 Logout</a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                authNav.innerHTML = '<a href="login.html">Login</a>';
+            }
+        }
+
+        window.logout = async function() { 
+            await sb.auth.signOut(); 
+            location.reload(); 
+        };
+
+        checkAuthAndUpdateNav();
+
+        // Mobile Hamburger Menu
+        const hamburger = document.querySelector('.hamburger');
+        const navLinks = document.querySelector('.nav-links');
+
+        if (hamburger && navLinks) {
+            hamburger.addEventListener('click', function() {
+                this.classList.toggle('active');
+                navLinks.classList.toggle('show');
+            });
+        }
+    async function updateNavigation() {
+        const { data: { session } } = await sb.auth.getSession();
+        const authNav = document.getElementById('authNavContainer');
+        
+        if (!authNav) {
+            console.log('authNavContainer not found on this page');
+            return;
+        }
+        
+        if (session) {
+            const isAdmin = session.user.email === ADMIN_EMAIL;
+            let profilePicUrl = null;
+            
+            try {
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+            } catch(e) {
+                console.log('Error fetching profile picture:', e);
+            }
+            
+            const profileIconHtml = profilePicUrl 
+                ? `<img src="${profilePicUrl}" id="profileNavImg" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+                : `<span id="profileNavIcon">👤</span>`;
+            
+            authNav.innerHTML = `
+                <div id="profileDropdownContainer" class="profileDropdown">
+                    <div id="profileDropdownIcon" class="profileIcon">
+                        ${profileIconHtml}
+                    </div>
+                    <div id="profileDropdownMenu" class="dropdownMenu">
+                        <a href="profile.html" id="dropdownProfileLink">My Profile</a>
+                        ${isAdmin ? '<a href="admin.html" id="dropdownAdminLink">Admin Panel</a>' : ''}
+                        <a href="#" id="dropdownLogoutLink" onclick="logout()">Logout</a>
+                    </div>
+                </div>
+            `;
+        } else {
+            authNav.innerHTML = '<a href="login.html" id="navLoginLink">Login</a>';
+        }
+    }
+
+    window.logout = async function() { 
+        await sb.auth.signOut(); 
+        window.location.href = 'login.html';
+    };
+
+    // Update navigation when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        updateNavigation();
+    });
+    
+    // Also update when auth state changes (in case user logs in/out from another tab)
+    sb.auth.onAuthStateChange(function(event, session) {
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+            updateNavigation();
+        }
+    });
+</script>
+</body>
+</html>

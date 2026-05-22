@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Admin Messages | Rooftopia</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">🏴‍☀️ Rooftopia Admin</div>
+            <button class="hamburger" onclick="document.querySelector('.nav-links').classList.toggle('show')">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="admin.html">Dashboard</a></li>
+                <li><a href="admin-messages.html" class="active">Messages</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div id="messagesContent" style="display: flex; flex: 1;">
+        <div class="messages-container">
+            <div class="conversation-list" id="conversationList">
+                <div class="conversation-header">
+                    <h2>💬 Conversations</h2>
+                </div>
+                <div id="conversationsList">
+                    <div class="empty-state">Loading conversations...</div>
+                </div>
+            </div>
+
+            <div class="chat-area" id="chatArea">
+                <div class="chat-header">
+                    <button class="chat-back-btn" id="chatBackBtn">←</button>
+                    <div class="chat-user-avatar" id="chatAvatar">
+                        <span>👤</span>
+                    </div>
+                    <div class="chat-user-info">
+                        <div class="chat-user-name" id="chatUserName">Select a chat</div>
+                        <div class="chat-user-status">Online</div>
+                    </div>
+                </div>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="empty-state">Select a conversation to start messaging</div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="replyInput" placeholder="Type a message...">
+                    <button id="sendReplyBtn">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        let currentConversation = null;
+        let currentChannel = null;
+        let pendingMessageId = null;
+
+        // Correct time function for Pakistan (UTC+5)
+        function formatLocalTime(utcTimestamp) {
+            if (!utcTimestamp) return '';
+            const date = new Date(utcTimestamp);
+            date.setHours(date.getHours() + 5);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        function formatLocalDate(utcTimestamp) {
+            if (!utcTimestamp) return '';
+            const date = new Date(utcTimestamp);
+            date.setHours(date.getHours() + 5);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            const dateStr = date.toDateString();
+            const todayStr = today.toDateString();
+            const yesterdayStr = yesterday.toDateString();
+            
+            if (dateStr === todayStr) {
+                return formatLocalTime(utcTimestamp);
+            } else if (dateStr === yesterdayStr) {
+                return 'Yesterday';
+            } else {
+                return date.toLocaleDateString();
+            }
+        }
+
+        async function deleteConversation(userEmail, userName) {
+            if (confirm(`Delete all messages with ${userName}? This cannot be undone.`)) {
+                await sb.from('citizen_messages').delete().eq('user_email', userEmail);
+                alert('Conversation deleted');
+                if (currentConversation && currentConversation.email === userEmail) {
+                    document.getElementById('chatArea').style.display = 'none';
+                    currentConversation = null;
+                }
+                loadConversations();
+            }
+        }
+
+        async function loadConversations() {
+            const { data, error } = await sb
+                .from('citizen_messages')
+                .select('*')
+                .eq('is_admin_reply', false)
+                .order('created_at', { ascending: false });
+            
+            if (error || !data || data.length === 0) {
+                document.getElementById('conversationsList').innerHTML = '<div class="empty-state">No messages from citizens yet.</div>';
+                return;
+            }
+            
+            const usersMap = new Map();
+            
+            for (const msg of data) {
+                if (!usersMap.has(msg.user_email)) {
+                    const userMessages = await sb
+                        .from('citizen_messages')
+                        .select('*')
+                        .eq('user_email', msg.user_email)
+                        .order('created_at', { ascending: false });
+                    
+                    const latestMsg = userMessages.data?.[0];
+                    const hasReply = latestMsg?.is_admin_reply === true;
+                    const unread = latestMsg?.status === 'unread' && !hasReply;
+                    
+                    let avatarUrl = null;
+                    const { data: profile } = await sb
+                        .from('profile_pictures')
+                        .select('photo_url')
+                        .eq('user_email', msg.user_email)
+                        .maybeSingle();
+                    
+                    if (profile) avatarUrl = profile.photo_url;
+                    
+                    usersMap.set(msg.user_email, {
+                        email: msg.user_email,
+                        name: msg.user_name,
+                        lastMessage: latestMsg?.message || msg.message,
+                        lastTime: latestMsg?.created_at || msg.created_at,
+                        unread: unread,
+                        avatarUrl: avatarUrl
+                    });
+                }
+            }
+            
+            let html = '';
+            for (const user of usersMap.values()) {
+                const timeStr = formatLocalDate(user.lastTime);
+                const avatarLetter = user.name.charAt(0).toUpperCase();
+                
+                html += `
+                    <div class="conversation-item ${user.unread ? 'unread' : ''}" onclick="openChat('${user.email}', '${user.name}')">
+                        <div class="conversation-avatar">
+                            ${user.avatarUrl ? `<img src="${user.avatarUrl}">` : `<span>${avatarLetter}</span>`}
+                        </div>
+                        <div class="conversation-info">
+                            <div class="conversation-name">
+                                ${escapeHtml(user.name)}
+                                ${user.unread ? '<span class="unread-badge">!</span>' : ''}
+                                <span class="conversation-time">${timeStr}</span>
+                            </div>
+                            <div class="conversation-last-msg">${escapeHtml(user.lastMessage.substring(0, 50))}${user.lastMessage.length > 50 ? '...' : ''}</div>
+                        </div>
+                        <button class="delete-chat-btn" onclick="event.stopPropagation(); deleteConversation('${user.email}', '${escapeHtml(user.name)}')">🗑️</button>
+                    </div>
+                `;
+            }
+            document.getElementById('conversationsList').innerHTML = html;
+        }
+
+        function addMessageToChatContainer(message, isFromAdmin, timestamp, isOptimistic = false) {
+            const container = document.getElementById('chatMessages');
+            
+            if (container.children.length === 1 && container.children[0].classList?.contains('empty-state')) {
+                container.innerHTML = '';
+            }
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isFromAdmin ? 'sent' : 'received'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = message;
+            
+            const timeSpan = document.createElement('div');
+            timeSpan.className = 'message-time';
+            if (isOptimistic) {
+                timeSpan.textContent = 'Sending...';
+            } else {
+                timeSpan.textContent = formatLocalTime(timestamp);
+            }
+            
+            messageDiv.appendChild(bubble);
+            messageDiv.appendChild(timeSpan);
+            container.appendChild(messageDiv);
+            
+            container.scrollTop = container.scrollHeight;
+            
+            return messageDiv;
+        }
+
+        async function loadChatMessages(userEmail) {
+            const { data, error } = await sb
+                .from('citizen_messages')
+                .select('*')
+                .eq('user_email', userEmail)
+                .order('created_at', { ascending: true });
+            
+            const container = document.getElementById('chatMessages');
+            container.innerHTML = '';
+            
+            if (error || !data || data.length === 0) {
+                container.innerHTML = '<div class="empty-state">No messages yet</div>';
+                return;
+            }
+            
+            for (const msg of data) {
+                addMessageToChatContainer(msg.message, msg.is_admin_reply, msg.created_at, false);
+            }
+            
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function openChat(userEmail, userName) {
+            currentConversation = { email: userEmail, name: userName };
+            
+            document.getElementById('chatUserName').innerText = userName;
+            
+            const { data: profile } = await sb
+                .from('profile_pictures')
+                .select('photo_url')
+                .eq('user_email', userEmail)
+                .maybeSingle();
+            
+            const avatarDiv = document.getElementById('chatAvatar');
+            if (profile && profile.photo_url) {
+                avatarDiv.innerHTML = `<img src="${profile.photo_url}">`;
+            } else {
+                avatarDiv.innerHTML = `<span>${userName.charAt(0).toUpperCase()}</span>`;
+            }
+            
+            if (window.innerWidth < 768) {
+                document.getElementById('conversationList').classList.add('hide');
+                document.getElementById('chatArea').classList.add('show');
+            }
+            
+            await loadChatMessages(userEmail);
+            
+            await sb.from('citizen_messages').update({ status: 'read' }).eq('user_email', userEmail).eq('is_admin_reply', false);
+            loadConversations();
+            
+            if (currentChannel) sb.removeChannel(currentChannel);
+            currentChannel = sb
+                .channel(`admin-${userEmail}`)
+                .on('postgres_changes', 
+                    { event: 'INSERT', schema: 'public', table: 'citizen_messages', filter: `user_email=eq.${userEmail}` },
+                    (payload) => {
+                        if (pendingMessageId === payload.new.id) {
+                            pendingMessageId = null;
+                            return;
+                        }
+                        addMessageToChatContainer(payload.new.message, payload.new.is_admin_reply, payload.new.created_at, false);
+                        loadConversations();
+                    }
+                )
+                .subscribe();
+        }
+
+        async function sendReply() {
+            const input = document.getElementById('replyInput');
+            const message = input.value.trim();
+            if (!message || !currentConversation) return;
+            
+            input.value = '';
+            
+            addMessageToChatContainer(message, true, null, true);
+            
+            const { data, error } = await sb
+                .from('citizen_messages')
+                .insert({
+                    user_email: currentConversation.email,
+                    user_name: currentConversation.name,
+                    subject: 'Admin Reply',
+                    message: message,
+                    status: 'read',
+                    is_admin_reply: true,
+                    created_at: new Date().toISOString()
+                })
+                .select();
+            
+            if (error) {
+                alert('Error sending reply');
+                const container = document.getElementById('chatMessages');
+                container.removeChild(container.lastChild);
+            } else if (data && data[0]) {
+                pendingMessageId = data[0].id;
+                const container = document.getElementById('chatMessages');
+                container.removeChild(container.lastChild);
+                addMessageToChatContainer(message, true, data[0].created_at, false);
+            }
+            loadConversations();
+        }
+
+        // Global real-time listener for NEW conversations (first message from new user)
+        function setupGlobalRealtime() {
+            const globalChannel = sb
+                .channel('admin-global-new')
+                .on('postgres_changes', 
+                    { event: 'INSERT', schema: 'public', table: 'citizen_messages', filter: 'is_admin_reply=eq.false' },
+                    (payload) => {
+                        console.log('New message from user:', payload.new.user_email);
+                        // Refresh the conversation list
+                        loadConversations();
+                    }
+                )
+                .subscribe();
+        }
+
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        document.getElementById('chatBackBtn')?.addEventListener('click', () => {
+            document.getElementById('conversationList').classList.remove('hide');
+            document.getElementById('chatArea').classList.remove('show');
+        });
+        
+        document.getElementById('sendReplyBtn')?.addEventListener('click', sendReply);
+        document.getElementById('replyInput')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendReply();
+        });
+
+        // Start everything
+        loadConversations();
+        setupGlobalRealtime();
+    </script>
+</body>
+</html>

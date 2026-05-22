@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="style.css">
+    <title>My Profile | Rooftopia</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+</head>
+<body>
+    <nav id="mainNavigation">
+    <div id="navContainer">
+        <div id="logoContainer">
+            <a href="index.html" id="logoLink">Rooftopia</a>
+        </div>
+        <button id="hamburgerMenuBtn">
+            <span id="hamburgerLine1"></span>
+            <span id="hamburgerLine2"></span>
+            <span id="hamburgerLine3"></span>
+        </button>
+        <ul id="navLinksList">
+            <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+            <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+            <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+            <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+            <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+        </ul>
+    </div>
+</nav>
+
+    <div id="profilePageContainer">
+        <div id="loginRequiredContainer"></div>
+        
+        <div id="profileContentContainer" style="display: none;">
+            <div id="profileHeader">
+                <div id="profileAvatarContainer">
+                    <div id="profileAvatarPlaceholder">👤</div>
+                    <div id="avatarUploadContainer">
+                        <label for="avatarUploadInput" id="avatarUploadLabel">Change Photo</label>
+                        <input type="file" id="avatarUploadInput" accept="image/jpeg,image/png" style="display: none;">
+                    </div>
+                </div>
+                <div id="profileInfoContainer">
+                    <h2 id="profileFullName">Loading...</h2>
+                    <p id="profileEmailAddress">Loading...</p>
+                    <div id="citizenshipStatusContainer"></div>
+                </div>
+            </div>
+
+            <div id="citizenshipDetailsSection" style="display: none;">
+                <h3>Citizenship Details</h3>
+                <div id="citizenshipDetailsContainer"></div>
+                <div id="downloadDocsContainer">
+                    <a href="#" id="downloadDocsLink" style="display: none;">Download ID & Passport</a>
+                </div>
+            </div>
+
+            <div id="accountManagementSection">
+                <h3>Account Management</h3>
+                <div id="deletionRequestContainer">
+                    <p>If you wish to leave Rooftopia, you can request account deletion. The Supreme Guardian will review your request.</p>
+                    <button id="requestDeletionBtn">Request Account Deletion</button>
+                    <div id="deletionRequestStatusContainer"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <footer id="mainFooter">
+        <div id="footerContent">
+            <div id="footerSection1">
+                <h4>Republic of Rooftopia</h4>
+                <p>"Above the Ordinary"<br>Est. 2026</p>
+            </div>
+            <div id="footerSection2">
+                <h4>Quick Links</h4>
+                <ul>
+                    <li><a href="apply.html">Apply</a></li>
+                    <li><a href="dashboard.html">Dashboard</a></li>
+                    <li><a href="about.html">About</a></li>
+                </ul>
+            </div>
+            <div id="footerSection3">
+                <h4>Contact</h4>
+                <p>hello@rooftopia.gov</p>
+            </div>
+        </div>
+        <div id="footerBottom">
+            <p>© 2026 Republic of Rooftopia — "Above the Ordinary"</p>
+        </div>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const ADMIN_EMAIL = 'ahadalihaider69@gmail.com';
+        
+        let currentUser = null;
+        let currentCitizen = null;
+        let deletionCheckInterval = null;
+
+        async function checkIfAccountDeleted() {
+            const { data: { session } } = await sb.auth.getSession();
+            if (!session) return;
+            
+            const { data: userData } = await sb
+                .from('applications')
+                .select('deletion_status, is_active')
+                .eq('auth_user_id', session.user.id)
+                .maybeSingle();
+            
+            if (userData && (userData.deletion_status === 'deleted' || userData.is_active === false)) {
+                await sb.auth.signOut();
+                alert('Your account has been deleted.');
+                if (deletionCheckInterval) clearInterval(deletionCheckInterval);
+                window.location.href = 'index.html';
+            }
+        }
+
+        async function checkAuth() {
+            const { data: { session } } = await sb.auth.getSession();
+            const loginRequiredDiv = document.getElementById('loginRequiredContainer');
+            const profileContent = document.getElementById('profileContentContainer');
+            
+            if (!session) {
+                loginRequiredDiv.innerHTML = `<div><h2>Login Required</h2><p>Please login to view your profile.</p><a href="login.html">Go to Login</a><br><br><small><a href="signup.html">Create an account</a></small></div>`;
+                profileContent.style.display = 'none';
+                return false;
+            }
+            
+            currentUser = session.user;
+            loginRequiredDiv.innerHTML = '';
+            profileContent.style.display = 'block';
+            await loadUserData();
+            
+            if (deletionCheckInterval) clearInterval(deletionCheckInterval);
+            deletionCheckInterval = setInterval(checkIfAccountDeleted, 30000);
+            
+            return true;
+        }
+
+        async function loadUserData() {
+            const { data: citizen } = await sb
+                .from('applications')
+                .select('*')
+                .eq('auth_user_id', currentUser.id)
+                .maybeSingle();
+            
+            currentCitizen = citizen;
+            
+            document.getElementById('profileFullName').innerText = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+            document.getElementById('profileEmailAddress').innerText = currentUser.email;
+            
+            const { data: picData } = await sb
+                .from('profile_pictures')
+                .select('photo_url')
+                .eq('user_id', currentUser.id)
+                .maybeSingle();
+            
+            const avatarContainer = document.getElementById('profileAvatarPlaceholder');
+            if (picData && picData.photo_url) {
+                avatarContainer.innerHTML = `<img src="${picData.photo_url}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+            } else {
+                avatarContainer.innerHTML = '👤';
+            }
+            
+            const statusDiv = document.getElementById('citizenshipStatusContainer');
+            const citizenshipSection = document.getElementById('citizenshipDetailsSection');
+            const citizenshipDetails = document.getElementById('citizenshipDetailsContainer');
+            const downloadDocsLink = document.getElementById('downloadDocsLink');
+            
+            if (!citizen) {
+                statusDiv.innerHTML = '<span>No Citizenship Application</span><p><a href="apply.html">Apply for Citizenship</a></p>';
+                citizenshipSection.style.display = 'none';
+            } else if (citizen.status === 'approved' && citizen.is_active === true) {
+                statusDiv.innerHTML = '<span>Approved Citizen</span>';
+                citizenshipSection.style.display = 'block';
+                citizenshipDetails.innerHTML = `
+                    <p><strong>CNIC:</strong> ${citizen.cnic || 'Pending'}</p>
+                    <p><strong>Full Name:</strong> ${citizen.full_name}</p>
+                    <p><strong>Father's Name:</strong> ${citizen.father_name}</p>
+                    <p><strong>Date of Birth:</strong> ${new Date(citizen.dob).toLocaleDateString()}</p>
+                    <p><strong>Province:</strong> ${citizen.province?.toUpperCase()}</p>
+                    <p><strong>Approved On:</strong> ${new Date(citizen.approved_at).toLocaleDateString()}</p>
+                `;
+                downloadDocsLink.style.display = 'inline-block';
+                downloadDocsLink.href = `download.html?type=id&id=${citizen.application_id}&token=${btoa(citizen.application_id)}`;
+            } else if (citizen.status === 'pending') {
+                statusDiv.innerHTML = '<span>Pending Approval</span>';
+                citizenshipSection.style.display = 'none';
+            } else if (citizen.status === 'rejected') {
+                statusDiv.innerHTML = '<span>Application Rejected</span>';
+                citizenshipSection.style.display = 'none';
+            }
+            
+            await loadDeletionRequestStatus();
+        }
+
+        async function uploadAvatar(input) {
+            if (!input.files || !input.files[0]) return;
+            
+            const file = input.files[0];
+            if (file.size > 2 * 1024 * 1024) {
+                alert('File must be less than 2MB');
+                return;
+            }
+            
+            const fileName = `avatar_${currentUser.id}_${Date.now()}.jpg`;
+            
+            try {
+                const { error: uploadError } = await sb.storage
+                    .from('citizen-photos')
+                    .upload(fileName, file, { upsert: true });
+                
+                if (uploadError) throw uploadError;
+                
+                const { data: publicUrl } = sb.storage.from('citizen-photos').getPublicUrl(fileName);
+                
+                const { error: upsertError } = await sb
+                    .from('profile_pictures')
+                    .upsert({
+                        user_id: currentUser.id,
+                        user_email: currentUser.email,
+                        photo_url: publicUrl.publicUrl,
+                        updated_at: new Date().toISOString()
+                    }, { onConflict: 'user_id' });
+                
+                if (upsertError) throw upsertError;
+                
+                document.getElementById('profileAvatarPlaceholder').innerHTML = `<img src="${publicUrl.publicUrl}" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">`;
+                alert('Profile picture updated successfully!');
+                
+            } catch (error) {
+                console.error('Upload error:', error);
+                alert('Upload failed: ' + error.message);
+            }
+        }
+
+    async function requestAccountDeletion() {
+    const expiryDate = new Date();
+    expiryDate.setDate(expiryDate.getDate() + 7);
+    
+    const statusDiv = document.getElementById('deletionRequestStatusContainer');
+    
+    // Check if already has pending request
+    const { data: existing } = await sb.from('deletion_requests').select('id').eq('user_id', currentUser.id).eq('status', 'pending').maybeSingle();
+    if (existing) { 
+        statusDiv.innerHTML = '<div style="background: #FFF3E0; color: #F4A261; padding: 12px; border-radius: 8px;">You already have a pending deletion request.</div>';
+        return;
+    }
+    
+    // Show confirmation in page
+    statusDiv.innerHTML = `
+        <div style="background: #FFEBEE; color: #E63946; padding: 16px; border-radius: 12px; margin-top: 15px;">
+            <strong>⚠️ WARNING: Account Deletion Request</strong><br><br>
+            You are about to request account deletion.<br><br>
+            <strong>What will happen:</strong><br>
+            • You will be immediately logged out<br>
+            • Your account will be deleted on <strong>${expiryDate.toLocaleDateString()}</strong> (7 days from now)<br>
+            • If you login within 7 days, your account will be restored<br>
+            • If you do NOT login within 7 days, your account will be permanently deleted<br><br>
+            <button id="confirmDeletionBtn" style="background: #E63946; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin-right: 10px;">Yes, Delete My Account</button>
+            <button id="cancelDeletionConfirmBtn" style="background: #6C757D; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer;">No, Cancel</button>
+        </div>
+    `;
+    
+    document.getElementById('confirmDeletionBtn').onclick = async () => {
+        statusDiv.innerHTML = '<div style="background: #E3F2FD; padding: 12px; border-radius: 8px;">⏳ Processing deletion request...</div>';
+        
+        // Mark account as pending deletion
+        await sb.from('applications').update({
+            deletion_status: 'pending_deletion',
+            deletion_requested_at: new Date().toISOString(),
+            deletion_expires_at: expiryDate.toISOString(),
+            is_active: false
+        }).eq('auth_user_id', currentUser.id);
+        
+        await sb.from('deletion_requests').insert([{
+            user_id: currentUser.id,
+            user_email: currentUser.email,
+            user_name: currentUser.user_metadata?.full_name || currentUser.email,
+            status: 'pending',
+            requested_at: new Date().toISOString(),
+            expires_at: expiryDate.toISOString()
+        }]);
+        
+        statusDiv.innerHTML = `<div style="background: #E8F5E9; color: #2E8B57; padding: 12px; border-radius: 8px;">
+            ✅ Deletion request submitted.<br><br>
+            You have been logged out.<br>
+            Login within 7 days (before ${expiryDate.toLocaleDateString()}) to keep your account.
+        </div>`;
+        
+        // Immediately logout
+        setTimeout(async () => {
+            await sb.auth.signOut();
+            window.location.href = 'index.html';
+        }, 3000);
+    };
+    
+    document.getElementById('cancelDeletionConfirmBtn').onclick = () => {
+        statusDiv.innerHTML = '';
+    };
+}
+
+async function cancelDeletionRequest() {
+    const statusDiv = document.getElementById('deletionRequestStatusContainer');
+    
+    if (!confirm('Are you sure you want to CANCEL your account deletion request? Your account will remain active.')) return;
+    
+    statusDiv.innerHTML = '<div style="background: #E3F2FD; padding: 12px; border-radius: 8px;">⏳ Cancelling deletion request...</div>';
+    
+    await sb.from('applications').update({
+        deletion_status: 'none',
+        deletion_requested_at: null,
+        deletion_expires_at: null,
+        is_active: true
+    }).eq('auth_user_id', currentUser.id);
+    
+    await sb.from('deletion_requests').update({ 
+        status: 'cancelled',
+        cancelled: true
+    }).eq('user_id', currentUser.id);
+    
+    statusDiv.innerHTML = '<div style="background: #E8F5E9; color: #2E8B57; padding: 12px; border-radius: 8px;">✅ Deletion request cancelled. Your account is safe.</div>';
+    
+    await loadDeletionRequestStatus();
+}
+
+async function loadDeletionRequestStatus() {
+    const { data } = await sb.from('deletion_requests').select('*').eq('user_id', currentUser.id).eq('status', 'pending').maybeSingle();
+    const statusDiv = document.getElementById('deletionRequestStatusContainer');
+    const requestBtn = document.getElementById('requestDeletionBtn');
+    
+    if (data) {
+        const expiryDate = new Date(data.expires_at);
+        const daysLeft = Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24));
+        
+        statusDiv.innerHTML = `<div style="background: #FFF3E0; padding: 16px; border-radius: 12px;">
+            <strong>⏳ Account Deletion Pending</strong><br><br>
+            Your account is scheduled for deletion on <strong>${expiryDate.toLocaleDateString()}</strong> (in ${daysLeft} days).<br><br>
+            To keep your account, simply <a href="login.html">login here</a> before that date.<br><br>
+            <button id="cancelDeletionBtn" style="background: #F4A261; color: white; border: none; padding: 8px 16px; border-radius: 8px; cursor: pointer;">Cancel Deletion Request</button>
+        </div>`;
+        
+        requestBtn.style.display = 'none';
+        
+        const cancelBtn = document.getElementById('cancelDeletionBtn');
+        if (cancelBtn) cancelBtn.onclick = cancelDeletionRequest;
+        
+    } else {
+        statusDiv.innerHTML = '';
+        requestBtn.style.display = 'block';
+    }
+}
+
+        async function loadDeletionRequestStatus() {
+            const { data } = await sb.from('deletion_requests').select('*').eq('user_id', currentUser.id).eq('status', 'pending').maybeSingle();
+            const statusDiv = document.getElementById('deletionRequestStatusContainer');
+            const requestBtn = document.getElementById('requestDeletionBtn');
+            
+            if (data) {
+                const expiryDate = new Date(data.expires_at);
+                const daysLeft = Math.ceil((expiryDate - new Date()) / (1000 * 60 * 60 * 24));
+                
+                statusDiv.innerHTML = `<div>
+                    Your account deletion request is pending.<br>
+                    <strong>Your account will be deleted on ${expiryDate.toLocaleDateString()} (in ${daysLeft} days).</strong><br>
+                    You can cancel this request by clicking the button below.
+                </div>`;
+                
+                requestBtn.style.display = 'none';
+                
+                if (!document.getElementById('cancelDeletionBtn')) {
+                    const cancelButton = document.createElement('button');
+                    cancelButton.id = 'cancelDeletionBtn';
+                    cancelButton.textContent = 'Cancel Deletion Request';
+                    cancelButton.onclick = cancelDeletionRequest;
+                    cancelButton.style.marginTop = '10px';
+                    statusDiv.appendChild(cancelButton);
+                }
+            } else {
+                statusDiv.innerHTML = '';
+                requestBtn.style.display = 'block';
+                const existingCancelBtn = document.getElementById('cancelDeletionBtn');
+                if (existingCancelBtn) existingCancelBtn.remove();
+            }
+        }
+
+        async function checkAuthAndUpdateNav() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('authNavItem');
+            
+            if (session) {
+                const isAdmin = session.user.email === ADMIN_EMAIL;
+                let profilePicUrl = null;
+                const { data: picData } = await sb.from('profile_pictures').select('photo_url').eq('user_id', session.user.id).maybeSingle();
+                if (picData && picData.photo_url) profilePicUrl = picData.photo_url;
+                const profileIconHtml = profilePicUrl ? `<img src="${profilePicUrl}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">` : `<span>👤</span>`;
+                authNav.innerHTML = `<div><div id="profileIconNav" style="width: 40px; height: 40px; background: #0F3B2C; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;">${profileIconHtml}</div><div id="dropdownMenuNav" style="position: absolute; right: 0; top: 45px; background: white; min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid #e2e8f0; z-index: 1000; display: none;"><a href="profile.html">My Profile</a>${isAdmin ? '<a href="admin.html">Admin Panel</a>' : ''}<a href="#" onclick="logout()">Logout</a></div></div>`;
+                const profileIcon = document.getElementById('profileIconNav');
+                const dropdownMenu = document.getElementById('dropdownMenuNav');
+                if (profileIcon && dropdownMenu) {
+                    profileIcon.addEventListener('click', function(e) { e.stopPropagation(); const isVisible = dropdownMenu.style.display === 'block'; dropdownMenu.style.display = isVisible ? 'none' : 'block'; });
+                    document.addEventListener('click', function(e) { if (dropdownMenu && !profileIcon.contains(e.target) && !dropdownMenu.contains(e.target)) { dropdownMenu.style.display = 'none'; } });
+                }
+            } else {
+                authNav.innerHTML = '<a href="login.html">Login</a>';
+            }
+        }
+
+        window.logout = async function() { 
+            if (deletionCheckInterval) clearInterval(deletionCheckInterval);
+            await sb.auth.signOut(); 
+            location.reload(); 
+        };
+        
+        document.getElementById('avatarUploadInput').addEventListener('change', function(e) { uploadAvatar(this); });
+        document.getElementById('requestDeletionBtn').addEventListener('click', requestAccountDeletion);
+        
+        checkAuth();
+        checkAuthAndUpdateNav();
+        
+        document.getElementById('hamburgerBtn')?.addEventListener('click', function() {
+            document.getElementById('navLinks')?.classList.toggle('show');
+        });
+    
+
+    async function updateNavigation() {
+        const { data: { session } } = await sb.auth.getSession();
+        const authNav = document.getElementById('authNavContainer');
+        
+        if (!authNav) {
+            console.log('authNavContainer not found on this page');
+            return;
+        }
+        
+        if (session) {
+            const isAdmin = session.user.email === ADMIN_EMAIL;
+            let profilePicUrl = null;
+            
+            try {
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+            } catch(e) {
+                console.log('Error fetching profile picture:', e);
+            }
+            
+            const profileIconHtml = profilePicUrl 
+                ? `<img src="${profilePicUrl}" id="profileNavImg" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+                : `<span id="profileNavIcon">👤</span>`;
+            
+            authNav.innerHTML = `
+                <div id="profileDropdownContainer" class="profileDropdown">
+                    <div id="profileDropdownIcon" class="profileIcon">
+                        ${profileIconHtml}
+                    </div>
+                    <div id="profileDropdownMenu" class="dropdownMenu">
+                        <a href="profile.html" id="dropdownProfileLink">My Profile</a>
+                        ${isAdmin ? '<a href="admin.html" id="dropdownAdminLink">Admin Panel</a>' : ''}
+                        <a href="#" id="dropdownLogoutLink" onclick="logout()">Logout</a>
+                    </div>
+                </div>
+            `;
+        } else {
+            authNav.innerHTML = '<a href="login.html" id="navLoginLink">Login</a>';
+        }
+    }
+
+    window.logout = async function() { 
+        await sb.auth.signOut(); 
+        window.location.href = 'login.html';
+    };
+
+    // Update navigation when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        updateNavigation();
+    });
+    
+    // Also update when auth state changes (in case user logs in/out from another tab)
+    sb.auth.onAuthStateChange(function(event, session) {
+        if (event === 'SIGNED_IN' || event === 'SIGNED_OUT') {
+            updateNavigation();
+        }
+    });
+</script>
+
+</body>
+</html>

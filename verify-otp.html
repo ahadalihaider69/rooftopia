@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify OTP | Rooftopia</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script type="text/javascript" src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">🏴‍☀️ Rooftopia</div>
+            <button class="hamburger">☰</button>
+            <ul class="nav-links">
+                <li><a href="index.html">Home</a></li>
+                <li><a href="about.html">About</a></li>
+                <li><a href="events.html">Events</a></li>
+                <li><a href="chat.html">Chat</a></li>
+                <li id="auth-nav-item"><a href="login.html">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div class="auth-container">
+        <h1 class="text-center">📱 Verify Your Account</h1>
+        <p class="text-center" id="emailDisplay">Loading...</p>
+        <div id="messageArea"></div>
+        
+        <div id="otpSection">
+            <div class="otp-inputs">
+                <input type="text" maxlength="1" class="otp-input" id="otp1" oninput="moveToNext(this, 'otp2')">
+                <input type="text" maxlength="1" class="otp-input" id="otp2" oninput="moveToNext(this, 'otp3')">
+                <input type="text" maxlength="1" class="otp-input" id="otp3" oninput="moveToNext(this, 'otp4')">
+                <input type="text" maxlength="1" class="otp-input" id="otp4" oninput="moveToNext(this, 'otp5')">
+                <input type="text" maxlength="1" class="otp-input" id="otp5" oninput="moveToNext(this, 'otp6')">
+                <input type="text" maxlength="1" class="otp-input" id="otp6" oninput="verifyOTP()">
+            </div>
+            
+            <button onclick="verifyOTP()" class="btn btn-primary btn-block">Verify →</button>
+            
+            <div class="resend-timer" id="resendTimer">
+                Didn't receive code? <span id="resendLink" class="resend-link" onclick="resendOTP()">Resend OTP</span>
+                <span id="timerText"></span>
+            </div>
+        </div>
+    </div>
+
+    <footer>
+        <div class="footer-content">
+            <div class="footer-section"><h4>Republic of Rooftopia</h4><p>"Above the Ordinary"<br>Est. 2026</p></div>
+            <div class="footer-section"><h4>Quick Links</h4><ul><li><a href="apply.html">Apply</a></li><li><a href="dashboard.html">Dashboard</a></li></ul></div>
+            <div class="footer-section"><h4>Contact</h4><p>📧 hello@rooftopia.gov</p></div>
+        </div>
+        <div class="footer-bottom"><p>© 2026 Republic of Rooftopia — "Above the Ordinary"</p></div>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        emailjs.init("yc1wK3daOfUYQaHE6");
+        
+        let userEmail = null;
+        let userFullName = null;
+        let timerInterval = null;
+
+        // Get email from URL or session storage
+        const urlParams = new URLSearchParams(window.location.search);
+        userEmail = urlParams.get('email');
+        
+        if (!userEmail) {
+            userEmail = sessionStorage.getItem('pending_verification_email');
+        }
+        
+        if (!userEmail) {
+            window.location.href = 'signup.html';
+        }
+        
+        document.getElementById('emailDisplay').innerHTML = `We sent a code to:<br><strong>${userEmail}</strong>`;
+        
+        // Start 10 minute timer
+        startTimer(600);
+
+        function moveToNext(current, nextId) {
+            if (current.value.length === 1) {
+                const next = document.getElementById(nextId);
+                if (next) next.focus();
+            }
+        }
+
+        async function verifyOTP() {
+            const otp1 = document.getElementById('otp1').value;
+            const otp2 = document.getElementById('otp2').value;
+            const otp3 = document.getElementById('otp3').value;
+            const otp4 = document.getElementById('otp4').value;
+            const otp5 = document.getElementById('otp5').value;
+            const otp6 = document.getElementById('otp6').value;
+            
+            const otpCode = otp1 + otp2 + otp3 + otp4 + otp5 + otp6;
+            
+            if (otpCode.length !== 6) {
+                showMessage('Please enter full 6-digit code', 'error');
+                return;
+            }
+            
+            showMessage('Verifying...', 'info');
+            
+            // Check OTP in database
+            const { data, error } = await sb
+                .from('otp_codes')
+                .select('*')
+                .eq('email', userEmail)
+                .eq('otp_code', otpCode)
+                .eq('is_verified', false)
+                .order('created_at', { ascending: false })
+                .limit(1);
+            
+            if (error || !data || data.length === 0) {
+                showMessage('Invalid or expired code. Please try again.', 'error');
+                return;
+            }
+            
+            const otpRecord = data[0];
+            const now = new Date();
+            const expiresAt = new Date(otpRecord.expires_at);
+            
+            if (now > expiresAt) {
+                showMessage('Code has expired. Please request a new one.', 'error');
+                return;
+            }
+            
+            // Mark OTP as verified
+            await sb.from('otp_codes').update({ is_verified: true }).eq('id', otpRecord.id);
+            
+            // Update Supabase user metadata to mark as verified
+            const { data: { session } } = await sb.auth.getSession();
+            if (session) {
+                await sb.auth.updateUser({
+                    data: { email_verified: true }
+                });
+            }
+            
+            showMessage('✅ Email verified successfully! Redirecting...', 'success');
+            
+            if (timerInterval) clearInterval(timerInterval);
+            
+            setTimeout(() => {
+                window.location.href = 'dashboard.html';
+            }, 2000);
+        }
+
+        async function resendOTP() {
+            if (!userEmail) return;
+            
+            // Generate new OTP
+            const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date();
+            expiresAt.setMinutes(expiresAt.getMinutes() + 10);
+            
+            // Save OTP to database
+            const { error } = await sb.from('otp_codes').insert([{
+                email: userEmail,
+                otp_code: otpCode,
+                expires_at: expiresAt.toISOString(),
+                is_verified: false
+            }]);
+            
+            if (error) {
+                showMessage('Error generating OTP. Please try again.', 'error');
+                return;
+            }
+            
+            // Send OTP via EmailJS
+            try {
+                await emailjs.send('service_8z50aj8', 'template_otp', {
+                    to_email: userEmail,
+                    otp_code: otpCode,
+                    name: userFullName || 'Citizen'
+                });
+                
+                showMessage('📧 New OTP sent to your email!', 'success');
+                startTimer(600);
+                
+                // Clear input fields
+                for (let i = 1; i <= 6; i++) {
+                    document.getElementById(`otp${i}`).value = '';
+                }
+                document.getElementById('otp1').focus();
+                
+            } catch (err) {
+                console.error('Email error:', err);
+                showMessage('Failed to send OTP. Please try again.', 'error');
+            }
+        }
+
+        function startTimer(seconds) {
+            const resendLink = document.getElementById('resendLink');
+            const timerText = document.getElementById('timerText');
+            
+            if (timerInterval) clearInterval(timerInterval);
+            
+            resendLink.style.display = 'none';
+            timerText.style.display = 'inline';
+            
+            let remaining = seconds;
+            
+            timerInterval = setInterval(() => {
+                const mins = Math.floor(remaining / 60);
+                const secs = remaining % 60;
+                timerText.innerHTML = ` (${mins}:${secs.toString().padStart(2, '0')})`;
+                
+                if (remaining <= 0) {
+                    clearInterval(timerInterval);
+                    resendLink.style.display = 'inline';
+                    timerText.style.display = 'none';
+                }
+                remaining--;
+            }, 1000);
+        }
+
+        function showMessage(msg, type) {
+            const msgDiv = document.getElementById('messageArea');
+            msgDiv.innerHTML = `<div class="alert ${type}">${msg}</div>`;
+            setTimeout(() => {
+                msgDiv.innerHTML = '';
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

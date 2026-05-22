@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Verify Card | Rooftopia</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <nav id="mainNavigation">
+        <div id="navContainer">
+            <div id="logoContainer">
+                <a href="index.html" id="logoLink">Rooftopia</a>
+            </div>
+            <button id="hamburgerMenuBtn">
+                <span id="hamburgerLine1"></span>
+                <span id="hamburgerLine2"></span>
+                <span id="hamburgerLine3"></span>
+            </button>
+            <ul id="navLinksList">
+                <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+                <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+                <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+                <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+                <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div style="max-width: 500px; margin: 60px auto; padding: 20px;">
+        <div id="verificationResult" style="text-align: center; padding: 40px; background: white; border-radius: 16px; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
+            <div id="loadingIcon" style="margin-bottom: 20px;">
+                <i class="fas fa-spinner fa-spin" style="font-size: 3rem; color: #2C5F8A;"></i>
+            </div>
+            <h2 id="statusTitle">Verifying Card...</h2>
+            <p id="statusMessage">Please wait while we verify the document.</p>
+            <div id="cardDetails" style="margin-top: 20px; text-align: left; display: none;"></div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const applicationId = urlParams.get('id');
+        const cnic = urlParams.get('cnic');
+        const token = urlParams.get('token');
+
+        async function verifyCard() {
+            const loadingIcon = document.getElementById('loadingIcon');
+            const statusTitle = document.getElementById('statusTitle');
+            const statusMessage = document.getElementById('statusMessage');
+            const cardDetails = document.getElementById('cardDetails');
+            
+            // Validate token
+            if (!applicationId || !token || atob(token) !== applicationId) {
+                loadingIcon.innerHTML = '<i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #EF4444;"></i>';
+                statusTitle.innerHTML = 'Invalid Verification Link';
+                statusMessage.innerHTML = 'This verification link is invalid or has been tampered with.';
+                return;
+            }
+            
+            try {
+                // Fetch application data
+                const { data: app, error } = await sb
+                    .from('applications')
+                    .select('*')
+                    .eq('application_id', applicationId)
+                    .single();
+                
+                if (error || !app) {
+                    loadingIcon.innerHTML = '<i class="fas fa-times-circle" style="font-size: 3rem; color: #EF4444;"></i>';
+                    statusTitle.innerHTML = 'Document Not Found';
+                    statusMessage.innerHTML = 'This document could not be found in our records.';
+                    return;
+                }
+                
+                // Verify CNIC matches
+                if (app.cnic !== cnic) {
+                    loadingIcon.innerHTML = '<i class="fas fa-exclamation-triangle" style="font-size: 3rem; color: #F59E0B;"></i>';
+                    statusTitle.innerHTML = 'Verification Failed';
+                    statusMessage.innerHTML = 'The document information does not match our records.';
+                    return;
+                }
+                
+                // Check if card is active
+                const isActive = app.is_active === true;
+                const issueDate = app.approved_at ? new Date(app.approved_at) : new Date();
+                const expiryDate = new Date(issueDate);
+                expiryDate.setFullYear(expiryDate.getFullYear() + 1);
+                const isExpired = new Date() > expiryDate;
+                
+                let status = '';
+                let statusColor = '';
+                let statusIcon = '';
+                
+                if (!isActive) {
+                    status = 'TERMINATED';
+                    statusColor = '#EF4444';
+                    statusIcon = '<i class="fas fa-ban" style="font-size: 3rem; color: #EF4444;"></i>';
+                } else if (isExpired) {
+                    status = 'EXPIRED';
+                    statusColor = '#F59E0B';
+                    statusIcon = '<i class="fas fa-clock" style="font-size: 3rem; color: #F59E0B;"></i>';
+                } else {
+                    status = 'VALID';
+                    statusColor = '#10B981';
+                    statusIcon = '<i class="fas fa-check-circle" style="font-size: 3rem; color: #10B981;"></i>';
+                }
+                
+                loadingIcon.innerHTML = statusIcon;
+                statusTitle.innerHTML = `Document Status: <span style="color: ${statusColor};">${status}</span>`;
+                statusMessage.innerHTML = `This is an official Rooftopia identification document.`;
+                
+                cardDetails.style.display = 'block';
+                cardDetails.innerHTML = `
+                    <div style="background: #F8F9FA; border-radius: 12px; padding: 16px;">
+                        <h3 style="color: #2C5F8A; margin-bottom: 16px;">📄 Document Details</h3>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #E5E7EB;">
+                            <span style="font-weight: 600;">Full Name:</span>
+                            <span>${app.full_name}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #E5E7EB;">
+                            <span style="font-weight: 600;">CNIC:</span>
+                            <span>${app.cnic}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #E5E7EB;">
+                            <span style="font-weight: 600;">Father's Name:</span>
+                            <span>${app.father_name || '—'}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #E5E7EB;">
+                            <span style="font-weight: 600;">Date of Birth:</span>
+                            <span>${new Date(app.dob).toLocaleDateString()}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #E5E7EB;">
+                            <span style="font-weight: 600;">Issue Date:</span>
+                            <span>${issueDate.toLocaleDateString()}</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; padding: 8px 0;">
+                            <span style="font-weight: 600;">Expiry Date:</span>
+                            <span>${expiryDate.toLocaleDateString()}</span>
+                        </div>
+                        <div style="margin-top: 16px; padding: 12px; background: ${status === 'VALID' ? '#D1FAE5' : '#FEE2E2'}; border-radius: 8px; text-align: center;">
+                            <strong style="color: ${statusColor};">${status === 'VALID' ? '✓ This document is currently ACTIVE and VALID' : (status === 'EXPIRED' ? '⚠️ This document has EXPIRED' : '✗ This document has been TERMINATED')}</strong>
+                        </div>
+                    </div>
+                `;
+                
+            } catch (err) {
+                console.error('Verification error:', err);
+                loadingIcon.innerHTML = '<i class="fas fa-exclamation-circle" style="font-size: 3rem; color: #EF4444;"></i>';
+                statusTitle.innerHTML = 'Verification Error';
+                statusMessage.innerHTML = 'An error occurred while verifying the document. Please try again later.';
+            }
+        }
+        
+        verifyCard();
+        
+        // Navigation update
+        async function updateNavigation() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('authNavContainer');
+            
+            if (!authNav) return;
+            
+            if (session) {
+                const isAdmin = session.user.email === 'ahadalihaider79@gmail.com';
+                let profilePicUrl = null;
+                
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+                
+                const profileIconHtml = profilePicUrl 
+                    ? `<img src="${profilePicUrl}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+                    : `<span>👤</span>`;
+                
+                authNav.innerHTML = `
+                    <div style="position: relative; display: inline-block;">
+                        <div id="profileIcon" style="width: 40px; height: 40px; background: #2C5F8A; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;">
+                            ${profileIconHtml}
+                        </div>
+                        <div id="dropdownMenu" style="position: absolute; right: 0; top: 45px; background: white; min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid #e2e8f0; z-index: 1000; display: none;">
+                            <a href="profile.html" style="display: block; padding: 10px 16px; color: #333; text-decoration: none;">My Profile</a>
+                            ${isAdmin ? '<a href="admin.html" style="display: block; padding: 10px 16px; color: #333; text-decoration: none;">Admin Panel</a>' : ''}
+                            <a href="#" onclick="logout()" style="display: block; padding: 10px 16px; color: #333; text-decoration: none;">Logout</a>
+                        </div>
+                    </div>
+                `;
+                
+                const profileIcon = document.getElementById('profileIcon');
+                const dropdownMenu = document.getElementById('dropdownMenu');
+                if (profileIcon && dropdownMenu) {
+                    profileIcon.onclick = function(e) {
+                        e.stopPropagation();
+                        dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+                    };
+                    document.onclick = function() { dropdownMenu.style.display = 'none'; };
+                }
+            } else {
+                authNav.innerHTML = '<a href="login.html" style="color: #666; text-decoration: none;">Login</a>';
+            }
+        }
+        
+        window.logout = async function() { await sb.auth.signOut(); window.location.href = 'login.html'; };
+        updateNavigation();
+        
+        // Hamburger menu
+        document.getElementById('hamburgerMenuBtn')?.addEventListener('click', function() {
+            document.getElementById('navLinksList')?.classList.toggle('show');
+        });
+    </script>
+</body>
+</html>

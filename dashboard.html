@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Documents | Rooftopia</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <nav id="mainNavigation">
+        <div id="navContainer">
+            <div id="logoContainer">
+                <a href="index.html" id="logoLink">Rooftopia</a>
+            </div>
+            <button id="hamburgerMenuBtn">
+                <span id="hamburgerLine1"></span>
+                <span id="hamburgerLine2"></span>
+                <span id="hamburgerLine3"></span>
+            </button>
+            <ul id="navLinksList">
+                <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+                <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+                <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+                <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+                <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div id="downloadContainer" style="max-width: 600px; margin: 40px auto; padding: 20px;">
+        <div id="loadingMessage" style="text-align: center; padding: 40px;">
+            <i class="fas fa-spinner fa-spin" style="font-size: 2rem; color: var(--primary);"></i>
+            <p>Loading your documents...</p>
+        </div>
+        
+        <div id="errorMessage" style="display: none; text-align: center; padding: 40px; background: var(--error-light); border-radius: 12px; color: var(--error);">
+            <i class="fas fa-exclamation-circle" style="font-size: 2rem;"></i>
+            <p id="errorText"></p>
+        </div>
+        
+        <div id="documentDisplay" style="display: none;"></div>
+        
+        <div id="buttonContainer" style="display: none; text-align: center; margin-top: 30px;">
+            <button id="downloadBtn" class="btnPrimary" style="margin: 5px;"><i class="fas fa-download"></i> Download as PNG</button>
+            <button onclick="window.print()" class="btnOutline" style="margin: 5px;"><i class="fas fa-print"></i> Print</button>
+            <a href="dashboard.html" class="btn-secondary" style="margin: 5px; text-decoration: none; display: inline-block;"><i class="fas fa-arrow-left"></i> Back</a>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        // Get URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const type = urlParams.get('type');
+        const appId = urlParams.get('id');
+        const token = urlParams.get('token');
+        
+        let currentApplication = null;
+        let qrCodeInstance = null;
+
+        // Calculate expiry date (1 year from issue date)
+        function calculateExpiryDate(issueDate) {
+            const expiry = new Date(issueDate);
+            expiry.setFullYear(expiry.getFullYear() + 1);
+            return expiry;
+        }
+
+        // Check if card is valid
+        function isCardValid(expiryDate) {
+            const today = new Date();
+            return today <= expiryDate;
+        }
+
+        // Generate verification URL for QR code
+        function generateVerificationUrl(applicationId, cnic) {
+            // This URL will point to a verification page
+            const baseUrl = window.location.origin;
+            return `${baseUrl}/verify-card.html?id=${applicationId}&cnic=${encodeURIComponent(cnic)}&token=${btoa(applicationId)}`;
+        }
+
+        // Create QR code element
+        function createQRCode(containerId, url, size = 100) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = '';
+                new QRCode(container, {
+                    text: url,
+                    width: size,
+                    height: size,
+                    colorDark: "#1E3A5F",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            }
+        }
+
+        async function init() {
+            const loadingDiv = document.getElementById('loadingMessage');
+            const errorDiv = document.getElementById('errorMessage');
+            const documentDiv = document.getElementById('documentDisplay');
+            const buttonDiv = document.getElementById('buttonContainer');
+            
+            // Validate parameters
+            if (!appId || !token || atob(token) !== appId) {
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                document.getElementById('errorText').innerHTML = 'Invalid download link. Please go back and try again.';
+                return;
+            }
+            
+            try {
+                // Fetch application data
+                const { data: app, error } = await sb
+                    .from('applications')
+                    .select('*')
+                    .eq('application_id', appId)
+                    .single();
+                
+                if (error || !app) {
+                    loadingDiv.style.display = 'none';
+                    errorDiv.style.display = 'block';
+                    document.getElementById('errorText').innerHTML = 'Application not found. Please contact support.';
+                    return;
+                }
+                
+                if (app.status !== 'approved') {
+                    loadingDiv.style.display = 'none';
+                    errorDiv.style.display = 'block';
+                    document.getElementById('errorText').innerHTML = 'Your application has not been approved yet. Please wait for admin approval.';
+                    return;
+                }
+                
+                if (app.is_active === false) {
+                    loadingDiv.style.display = 'none';
+                    errorDiv.style.display = 'block';
+                    document.getElementById('errorText').innerHTML = 'Your citizenship has been terminated. These documents are no longer valid.';
+                    return;
+                }
+                
+                currentApplication = app;
+                loadingDiv.style.display = 'none';
+                
+                if (type === 'id') {
+                    renderIDCard();
+                } else {
+                    renderPassport();
+                }
+                
+                documentDiv.style.display = 'block';
+                buttonDiv.style.display = 'block';
+                
+            } catch (err) {
+                console.error('Error:', err);
+                loadingDiv.style.display = 'none';
+                errorDiv.style.display = 'block';
+                document.getElementById('errorText').innerHTML = 'Error loading document. Please try again.';
+            }
+        }
+        
+        function renderIDCard() {
+            const app = currentApplication;
+            const provinceNames = { pr1: 'PR1 Province (Urban Hub)', pr2: 'PR2 Province (Agricultural Heartland)', pr3: 'PR3 Province (Mystic Sands)' };
+            const fatherName = app.father_name || '—';
+            const currentCountry = app.current_country || '—';
+            const issueDate = app.approved_at ? new Date(app.approved_at) : new Date();
+            const expiryDate = calculateExpiryDate(issueDate);
+            const isValid = isCardValid(expiryDate);
+            const verificationUrl = generateVerificationUrl(app.application_id, app.cnic);
+            
+            const html = `
+                <!-- ID Card Front -->
+                <div id="idCardFront" style="background: linear-gradient(135deg, white 0%, #F5F0E8 100%); border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid #E5E7EB; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; margin-left: auto; margin-right: auto;">
+                    <div style="text-align: center; border-bottom: 2px solid #F4A261; padding-bottom: 12px; margin-bottom: 16px;">
+                        <h2 style="font-size: 1rem; letter-spacing: 1px; margin-bottom: 4px;">REPUBLIC OF ROOFTOPIA</h2>
+                        <div style="font-size: 1.5rem;">🏴‍☀️</div>
+                    </div>
+                    <div style="display: flex; gap: 16px; margin-bottom: 16px; flex-wrap: wrap;">
+                        <div style="flex-shrink: 0;">
+                            <img src="${app.photo || 'https://via.placeholder.com/90x110'}" style="width: 90px; height: 110px; object-fit: cover; border-radius: 8px; border: 2px solid #2C5F8A;">
+                            <!-- QR Code Container -->
+                            <div id="qrCodeContainer" style="margin-top: 10px; text-align: center;"></div>
+                            <div style="font-size: 0.55rem; text-align: center; margin-top: 5px; color: #666;">Scan to verify</div>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                <span style="font-weight: 600; color: #2C5F8A;">Name</span>
+                                <span>${app.full_name}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                <span style="font-weight: 600; color: #2C5F8A;">Father</span>
+                                <span>${fatherName}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                <span style="font-weight: 600; color: #2C5F8A;">DOB</span>
+                                <span>${new Date(app.dob).toLocaleDateString()}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                <span style="font-weight: 600; color: #2C5F8A;">Gender</span>
+                                <span>${app.gender}</span>
+                            </div>
+                            <div style="display: flex; justify-content: space-between; padding: 6px 0;">
+                                <span style="font-weight: 600; color: #2C5F8A;">Province</span>
+                                <span>${provinceNames[app.province] || app.province}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; font-family: monospace; font-size: 1rem; font-weight: bold; background: #2C5F8A; color: white; padding: 10px; margin: 16px 0; border-radius: 8px; letter-spacing: 2px;">
+                        ${app.cnic || 'PENDING'}
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.65rem; color: #666; margin-top: 12px; flex-wrap: wrap; gap: 8px;">
+                        <span>📅 Issue: ${issueDate.toLocaleDateString()}</span>
+                        <span>⏰ Expiry: ${expiryDate.toLocaleDateString()}</span>
+                        <span>${isValid ? '<span style="color: #10B981;">✓ VALID</span>' : '<span style="color: #EF4444;">✗ EXPIRED</span>'}</span>
+                        <span>📋 Type: Citizen</span>
+                    </div>
+                </div>
+                
+                <!-- ID Card Back -->
+                <div id="idCardBack" style="background: linear-gradient(135deg, #E8E2D9 0%, #D5CCBF 100%); border-radius: 16px; padding: 20px; margin-bottom: 20px; border: 1px solid #E5E7EB; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; margin-left: auto; margin-right: auto;">
+                    <div style="background: #333; height: 40px; margin: -20px -20px 0 -20px; border-radius: 16px 16px 0 0;"></div>
+                    <div style="padding: 12px;">
+                        <div style="font-size: 0.6rem; color: #475569; margin-bottom: 8px;">AUTHORIZED SIGNATURE</div>
+                        <div style="border-bottom: 1px solid #94A3B8; width: 60%; margin-bottom: 12px;"></div>
+                        <div style="font-size: 0.6rem; color: #475569;">
+                            <p><strong>Country of Residence:</strong> ${currentCountry}</p>
+                            <p><strong>Document No:</strong> ${app.cnic || 'PENDING'}</p>
+                            <p><strong>Authority:</strong> Supreme Guardian</p>
+                            <p><strong>Valid Until:</strong> ${expiryDate.toLocaleDateString()}</p>
+                        </div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 0.55rem; color: #666; margin-top: 12px;">
+                        <span>🔒 Ceremonial Document</span>
+                        <span>Not for official use</span>
+                        <span>${isValid ? '● Active' : '○ Expired'}</span>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('documentDisplay').innerHTML = html;
+            
+            // Generate QR code after DOM is updated
+            setTimeout(() => {
+                createQRCode('qrCodeContainer', verificationUrl, 90);
+            }, 100);
+        }
+        
+        function renderPassport() {
+            const app = currentApplication;
+            const provinceNames = { pr1: 'PR1 Province', pr2: 'PR2 Province', pr3: 'PR3 Province' };
+            const passportNo = (app.cnic || 'CNIC001') + '-P';
+            const issueDate = app.approved_at ? new Date(app.approved_at) : new Date();
+            const expiryDate = calculateExpiryDate(issueDate);
+            const isValid = isCardValid(expiryDate);
+            const verificationUrl = generateVerificationUrl(app.application_id, app.cnic);
+            
+            const html = `
+                <!-- Passport Cover -->
+                <div id="passportCover" style="background: linear-gradient(135deg, #1E3A5F 0%, #2C5F8A 100%); color: #F4A261; text-align: center; padding: 40px; border-radius: 16px; cursor: pointer; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; margin-left: auto; margin-right: auto;">
+                    <div style="font-size: 3rem; margin-bottom: 16px;">🏴‍☀️</div>
+                    <h2 style="color: #F4A261; letter-spacing: 4px; margin-bottom: 8px;">ROOFTOPIA</h2>
+                    <p style="color: rgba(255,255,255,0.8); font-size: 0.7rem;">PASSPORT</p>
+                    <div style="margin-top: 20px;">
+                        <p style="font-size: 0.6rem;">Ceremonial Travel Document</p>
+                        <p style="font-size: 0.55rem; margin-top: 10px;">${isValid ? '✓ VALID' : '✗ EXPIRED'}</p>
+                    </div>
+                </div>
+                
+                <!-- Passport Page 1 -->
+                <div id="passportPage1" style="background: white; border-radius: 16px; padding: 24px; border: 1px solid #E5E7EB; box-shadow: 0 4px 15px rgba(0,0,0,0.1); margin-bottom: 20px; width: 100%; max-width: 450px; margin-left: auto; margin-right: auto;">
+                    <div style="text-align: center; border-bottom: 2px solid #F4A261; padding-bottom: 12px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 4px;">REPUBLIC OF ROOFTOPIA</h3>
+                        <p style="font-size: 0.6rem;">PASSPORT · PASSEPORT</p>
+                    </div>
+                    <div>
+                        <div style="display: flex; gap: 16px; flex-wrap: wrap;">
+                            <div>
+                                <img src="${app.photo || 'https://via.placeholder.com/80x90'}" style="width: 80px; height: 95px; object-fit: cover; border: 1px solid #ccc;">
+                                <div id="passportQrContainer" style="margin-top: 10px; text-align: center;"></div>
+                                <div style="font-size: 0.5rem; text-align: center;">Scan to verify</div>
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                    <span style="font-weight: 600; color: #2C5F8A; width: 120px; display: inline-block;">Surname</span>
+                                    <span>${app.full_name.split(' ').pop()}</span>
+                                </div>
+                                <div style="padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                    <span style="font-weight: 600; color: #2C5F8A; width: 120px; display: inline-block;">Given Name(s)</span>
+                                    <span>${app.full_name.split(' ').slice(0,-1).join(' ')}</span>
+                                </div>
+                                <div style="padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                    <span style="font-weight: 600; color: #2C5F8A; width: 120px; display: inline-block;">Nationality</span>
+                                    <span>Rooftopian</span>
+                                </div>
+                                <div style="padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                    <span style="font-weight: 600; color: #2C5F8A; width: 120px; display: inline-block;">Date of Birth</span>
+                                    <span>${new Date(app.dob).toLocaleDateString()}</span>
+                                </div>
+                                <div style="padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                    <span style="font-weight: 600; color: #2C5F8A; width: 120px; display: inline-block;">Place of Birth</span>
+                                    <span>${provinceNames[app.province] || app.province}, Rooftopia</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 16px;">
+                            <div style="padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                <span style="font-weight: 600; color: #2C5F8A; width: 120px; display: inline-block;">Sex</span>
+                                <span>${app.gender === 'Male' ? 'M' : (app.gender === 'Female' ? 'F' : 'T')}</span>
+                            </div>
+                            <div style="padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                <span style="font-weight: 600; color: #2C5F8A; width: 120px; display: inline-block;">Date of Issue</span>
+                                <span>${issueDate.toLocaleDateString()}</span>
+                            </div>
+                            <div style="padding: 6px 0; border-bottom: 1px dotted #ccc;">
+                                <span style="font-weight: 600; color: #2C5F8A; width: 120px; display: inline-block;">Date of Expiry</span>
+                                <span>${expiryDate.toLocaleDateString()}</span>
+                            </div>
+                            <div style="padding: 6px 0;">
+                                <span style="font-weight: 600; color: #2C5F8A; width: 120px; display: inline-block;">Passport No.</span>
+                                <span>${passportNo}</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 20px; font-size: 0.65rem; color: #666;">Page 1 of 2</div>
+                </div>
+                
+                <!-- Passport Page 2 -->
+                <div id="passportPage2" style="background: white; border-radius: 16px; padding: 24px; border: 1px solid #E5E7EB; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 450px; margin-left: auto; margin-right: auto;">
+                    <div style="text-align: center; border-bottom: 2px solid #F4A261; padding-bottom: 12px; margin-bottom: 20px;">
+                        <h3 style="margin-bottom: 4px;">VISA PAGES</h3>
+                        <p style="font-size: 0.6rem;">This passport is valid for ceremonial purposes only</p>
+                    </div>
+                    <div style="min-height: 180px;">
+                        <div style="border-bottom: 1px solid #E2D5B6; padding: 8px 0; display: flex; justify-content: space-between;">
+                            <span style="font-size: 0.65rem;">Rooftopia Entry Stamp</span>
+                            <span style="font-size: 0.65rem;">${new Date().toLocaleDateString()}</span>
+                        </div>
+                        <div style="border-bottom: 1px solid #E2D5B6; padding: 8px 0; display: flex; justify-content: space-between;">
+                            <span style="font-size: 0.65rem;">Citizen Registration</span>
+                            <span style="font-size: 0.65rem;">${issueDate.toLocaleDateString()}</span>
+                        </div>
+                        <div style="border-bottom: 1px solid #E2D5B6; padding: 8px 0; display: flex; justify-content: space-between;">
+                            <span style="font-size: 0.65rem;">Diplomatic Recognition</span>
+                            <span style="font-size: 0.65rem;">${isValid ? 'Valid' : 'Expired'}</span>
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 20px;">
+                        <div style="font-size: 0.55rem; color: #666;">Document valid until: ${expiryDate.toLocaleDateString()}</div>
+                        <div style="font-size: 0.55rem; color: ${isValid ? '#10B981' : '#EF4444'}; margin-top: 5px;">
+                            ${isValid ? '● ACTIVE' : '● EXPIRED'}
+                        </div>
+                    </div>
+                    <div style="text-align: center; margin-top: 20px; font-size: 0.65rem; color: #666;">Page 2 of 2</div>
+                </div>
+                
+                <div style="text-align: center; margin-top: 16px;">
+                    <button id="flipPageBtn" style="background: #F4A261; color: white; border: none; padding: 8px 24px; border-radius: 30px; cursor: pointer;"><i class="fas fa-book-open"></i> Flip Page</button>
+                </div>
+            `;
+            
+            document.getElementById('documentDisplay').innerHTML = html;
+            
+            // Generate QR code after DOM is updated
+            setTimeout(() => {
+                createQRCode('passportQrContainer', verificationUrl, 80);
+            }, 100);
+            
+            // Passport flip functionality
+            let currentPage = 0;
+            const cover = document.getElementById('passportCover');
+            const page1 = document.getElementById('passportPage1');
+            const page2 = document.getElementById('passportPage2');
+            
+            if (cover && page1 && page2) {
+                page1.style.display = 'none';
+                page2.style.display = 'none';
+                
+                document.getElementById('flipPageBtn').onclick = function() {
+                    if (currentPage === 0) {
+                        cover.style.display = 'none';
+                        page1.style.display = 'block';
+                        currentPage = 1;
+                    } else if (currentPage === 1) {
+                        page1.style.display = 'none';
+                        page2.style.display = 'block';
+                        currentPage = 2;
+                    } else {
+                        page2.style.display = 'none';
+                        cover.style.display = 'block';
+                        currentPage = 0;
+                    }
+                };
+            }
+        }
+        
+        // Download as PNG
+        document.getElementById('downloadBtn').addEventListener('click', async function() {
+            if (type === 'id') {
+                const frontCard = document.getElementById('idCardFront');
+                const backCard = document.getElementById('idCardBack');
+                
+                if (frontCard) {
+                    const canvas = await html2canvas(frontCard, { scale: 3, backgroundColor: '#ffffff' });
+                    const link = document.createElement('a');
+                    link.download = 'rooftopia_id_card_front.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                
+                if (backCard) {
+                    const canvas = await html2canvas(backCard, { scale: 3, backgroundColor: '#ffffff' });
+                    const link = document.createElement('a');
+                    link.download = 'rooftopia_id_card_back.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                }
+                alert('Download complete! Check your downloads folder.');
+            } else {
+                const cover = document.getElementById('passportCover');
+                const page1 = document.getElementById('passportPage1');
+                const page2 = document.getElementById('passportPage2');
+                
+                if (cover && cover.style.display !== 'none') {
+                    const canvas = await html2canvas(cover, { scale: 3, backgroundColor: '#ffffff' });
+                    const link = document.createElement('a');
+                    link.download = 'rooftopia_passport_cover.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                
+                if (page1 && page1.style.display !== 'none') {
+                    const canvas = await html2canvas(page1, { scale: 3, backgroundColor: '#ffffff' });
+                    const link = document.createElement('a');
+                    link.download = 'rooftopia_passport_page1.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                
+                if (page2 && page2.style.display !== 'none') {
+                    const canvas = await html2canvas(page2, { scale: 3, backgroundColor: '#ffffff' });
+                    const link = document.createElement('a');
+                    link.download = 'rooftopia_passport_page2.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                }
+                alert('Download complete! Check your downloads folder.');
+            }
+        });
+        
+        // Navigation update
+        async function updateNavigation() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('authNavContainer');
+            
+            if (!authNav) return;
+            
+            if (session) {
+                const isAdmin = session.user.email === 'ahadalihaider79@gmail.com';
+                let profilePicUrl = null;
+                
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+                
+                const profileIconHtml = profilePicUrl 
+                    ? `<img src="${profilePicUrl}" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+                    : `<span>👤</span>`;
+                
+                authNav.innerHTML = `
+                    <div style="position: relative; display: inline-block;">
+                        <div id="profileIcon" style="width: 40px; height: 40px; background: #2C5F8A; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; overflow: hidden;">
+                            ${profileIconHtml}
+                        </div>
+                        <div id="dropdownMenu" style="position: absolute; right: 0; top: 45px; background: white; min-width: 180px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); border-radius: 8px; border: 1px solid #e2e8f0; z-index: 1000; display: none;">
+                            <a href="profile.html" style="display: block; padding: 10px 16px; color: #333; text-decoration: none;">My Profile</a>
+                            ${isAdmin ? '<a href="admin.html" style="display: block; padding: 10px 16px; color: #333; text-decoration: none;">Admin Panel</a>' : ''}
+                            <a href="#" onclick="logout()" style="display: block; padding: 10px 16px; color: #333; text-decoration: none;">Logout</a>
+                        </div>
+                    </div>
+                `;
+                
+                const profileIcon = document.getElementById('profileIcon');
+                const dropdownMenu = document.getElementById('dropdownMenu');
+                if (profileIcon && dropdownMenu) {
+                    profileIcon.onclick = function(e) {
+                        e.stopPropagation();
+                        dropdownMenu.style.display = dropdownMenu.style.display === 'block' ? 'none' : 'block';
+                    };
+                    document.onclick = function() { dropdownMenu.style.display = 'none'; };
+                }
+            } else {
+                authNav.innerHTML = '<a href="login.html" style="color: #666; text-decoration: none;">Login</a>';
+            }
+        }
+        
+        window.logout = async function() { await sb.auth.signOut(); window.location.href = 'login.html'; };
+        
+        updateNavigation();
+        init();
+        
+        // Hamburger menu
+        document.getElementById('hamburgerMenuBtn')?.addEventListener('click', function() {
+            document.getElementById('navLinksList')?.classList.toggle('show');
+        });
+    </script>
+</body>
+</html>

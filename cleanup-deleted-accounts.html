@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html>
+<head><title>Cleanup Expired Deletions</title></head>
+<body>
+<h1>Cleanup Expired Account Deletions</h1>
+<pre id="output"></pre>
+<script>
+const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+const SUPABASE_ANON_KEY = 'your-anon-key';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+async function cleanupExpiredDeletions() {
+    const output = document.getElementById('output');
+    output.innerHTML = 'Checking for expired deletions...\n';
+    
+    // Find expired pending deletions
+    const { data: expiredUsers } = await sb
+        .from('applications')
+        .select('*')
+        .eq('deletion_status', 'pending_deletion')
+        .lt('deletion_expires_at', new Date().toISOString());
+    
+    if (!expiredUsers || expiredUsers.length === 0) {
+        output.innerHTML += 'No expired deletions found.\n';
+        return;
+    }
+    
+    output.innerHTML += `Found ${expiredUsers.length} expired accounts to delete.\n`;
+    
+    for (const user of expiredUsers) {
+        // Delete user data
+        await sb.from('citizen_messages').delete().eq('user_email', user.email);
+        await sb.from('votes').delete().eq('citizen_email', user.email);
+        
+        // Mark as fully deleted
+        await sb.from('applications').update({
+            deletion_status: 'deleted',
+            is_active: false,
+            status: 'deleted'
+        }).eq('id', user.id);
+        
+        output.innerHTML += `Deleted: ${user.email}\n`;
+    }
+    
+    output.innerHTML += '\nCleanup complete!';
+}
+
+cleanupExpiredDeletions();
+</script>
+</body>
+</html>

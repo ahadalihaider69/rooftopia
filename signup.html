@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign Up | Rooftopia</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <nav id="mainNavigation">
+    <div id="navContainer">
+        <div id="logoContainer">
+            <a href="index.html" id="logoLink">Rooftopia</a>
+        </div>
+        <button id="hamburgerMenuBtn">
+            <span id="hamburgerLine1"></span>
+            <span id="hamburgerLine2"></span>
+            <span id="hamburgerLine3"></span>
+        </button>
+        <ul id="navLinksList">
+            <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+            <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+            <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+            <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+            <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+        </ul>
+    </div>
+</nav>
+
+    <div id="authContainer">
+        <h1 id="authTitle">Create Account</h1>
+        <p id="authSubtitle">Join Rooftopia by creating your account</p>
+        <div id="messageArea"></div>
+        
+        <form id="signupForm">
+            <div id="fullNameGroup" class="formGroup">
+                <label for="fullNameInput" id="fullNameLabel">Full Name <span id="fullNameRequired" class="required">*</span></label>
+                <input type="text" id="fullNameInput" placeholder="Enter your full name" required>
+            </div>
+            <div id="emailGroup" class="formGroup">
+                <label for="emailInput" id="emailLabel">Email Address <span id="emailRequired" class="required">*</span></label>
+                <input type="email" id="emailInput" placeholder="you@example.com" required>
+            </div>
+            <div id="passwordGroup" class="formGroup">
+                <label for="passwordInput" id="passwordLabel">Password <span id="passwordRequired" class="required">*</span></label>
+                <div id="passwordWrapper">
+                    <input type="password" id="passwordInput" placeholder="Min 6 characters" required minlength="6">
+                    <button type="button" id="togglePasswordBtn"><i class="fas fa-eye" id="togglePasswordIcon"></i></button>
+                </div>
+            </div>
+            <button type="submit" id="signupSubmitBtn" class="btnPrimary btn-block">Create Account</button>
+        </form>
+        
+        <div id="authFooter">
+            Already have an account? <a href="login.html" id="loginLink">Login here</a>
+        </div>
+        
+        <div id="resendConfirmSection" style="display: none; margin-top: 20px;">
+            <h3 id="resendTitle">Resend Confirmation Email</h3>
+            <div id="resendGroup" class="formGroup">
+                <label for="resendEmailInput" id="resendEmailLabel">Email Address</label>
+                <input type="email" id="resendEmailInput" placeholder="Enter your email">
+                <button id="sendResendBtn" class="btnPrimary btn-block">Send Confirmation Link</button>
+            </div>
+            <a href="#" id="backToSignupLink">Back to Signup</a>
+        </div>
+    </div>
+
+    <footer id="mainFooter">
+        <div id="footerContentContainer">
+            <div id="footerAboutSection" class="footerSection">
+                <h4 id="footerAboutTitle">Republic of Rooftopia</h4>
+                <p id="footerAboutText">"Above the Ordinary"<br>Est. 2026</p>
+            </div>
+            <div id="footerLinksSection" class="footerSection">
+                <h4 id="footerLinksTitle">Quick Links</h4>
+                <ul id="footerLinksList">
+                    <li id="footerApplyItem"><a href="apply.html" id="footerApplyLink">Apply</a></li>
+                    <li id="footerDashboardItem"><a href="dashboard.html" id="footerDashboardLink">Dashboard</a></li>
+                    <li id="footerAboutItem"><a href="about.html" id="footerAboutLink">About</a></li>
+                </ul>
+            </div>
+            <div id="footerContactSection" class="footerSection">
+                <h4 id="footerContactTitle">Contact</h4>
+                <p id="footerContactEmail">hello@rooftopia.gov</p>
+            </div>
+        </div>
+        <div id="footerBottomContainer">
+            <p id="footerCopyright">© 2026 Republic of Rooftopia — "Above the Ordinary"</p>
+        </div>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const ADMIN_EMAIL = 'ahadalihaider79@gmail.com';
+
+        // Toggle password visibility
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        const passwordInput = document.getElementById('passwordInput');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+        
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    toggleIcon.classList.remove('fa-eye');
+                    toggleIcon.classList.add('fa-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    toggleIcon.classList.remove('fa-eye-slash');
+                    toggleIcon.classList.add('fa-eye');
+                }
+            });
+        }
+
+        // Resend confirmation email function
+        async function resendConfirmationEmail(email, messageDiv) {
+            messageDiv.innerHTML = '<div class="info-message"><i class="fas fa-spinner fa-spin"></i> Sending confirmation link...</div>';
+            
+            try {
+                const { error } = await sb.auth.resend({
+                    type: 'signup',
+                    email: email,
+                    options: {
+                        emailRedirectTo: window.location.origin + '/login.html'
+                    }
+                });
+                
+                if (error) throw error;
+                
+                messageDiv.innerHTML = `<div class="success-message">
+                    <i class="fas fa-check-circle"></i> Confirmation link sent to ${email}!<br>
+                    Please check your email (and spam folder).
+                </div>`;
+                
+            } catch (error) {
+                if (error.message.includes('already confirmed')) {
+                    messageDiv.innerHTML = '<div class="error-message">This email is already confirmed. <a href="login.html">Login here</a></div>';
+                } else {
+                    messageDiv.innerHTML = `<div class="error-message">${error.message}</div>`;
+                }
+            }
+        }
+
+        // Signup form submit
+        const signupForm = document.getElementById('signupForm');
+        const messageDiv = document.getElementById('messageArea');
+        
+        signupForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const fullName = document.getElementById('fullNameInput').value;
+            const email = document.getElementById('emailInput').value;
+            const password = document.getElementById('passwordInput').value;
+            
+            // Clear previous message
+            messageDiv.innerHTML = '';
+            
+            if (password.length < 6) {
+                messageDiv.innerHTML = '<div class="error-message">Password must be at least 6 characters</div>';
+                return;
+            }
+            
+            // Show loading
+            messageDiv.innerHTML = '<div class="info-message"><i class="fas fa-spinner fa-spin"></i> Creating your account...</div>';
+            
+            try {
+                const { data, error } = await sb.auth.signUp({
+                    email: email,
+                    password: password,
+                    options: {
+                        data: { full_name: fullName },
+                        emailRedirectTo: window.location.origin + '/login.html'
+                    }
+                });
+                
+                if (error) {
+                    if (error.message.includes('already registered')) {
+                        messageDiv.innerHTML = `
+                            <div class="error-message">
+                                An account with this email already exists.<br>
+                                <a href="login.html">Login here</a> or 
+                                <a href="#" id="resendLinkForExisting">resend confirmation email</a>
+                            </div>
+                        `;
+                        const resendLink = document.getElementById('resendLinkForExisting');
+                        if (resendLink) {
+                            resendLink.onclick = (e) => {
+                                e.preventDefault();
+                                resendConfirmationEmail(email, messageDiv);
+                            };
+                        }
+                    } else {
+                        messageDiv.innerHTML = `<div class="error-message">${error.message}</div>`;
+                    }
+                    return;
+                }
+                
+                // Check if user already existed but not confirmed
+                if (data.user && data.user.identities && data.user.identities.length === 0) {
+                    messageDiv.innerHTML = `
+                        <div class="warning-message">
+                            An account with this email already exists but is not verified.<br>
+                            <a href="#" id="resendConfirmNewLink">Click here to resend confirmation email</a>
+                        </div>
+                    `;
+                    const resendNewLink = document.getElementById('resendConfirmNewLink');
+                    if (resendNewLink) {
+                        resendNewLink.onclick = (e) => {
+                            e.preventDefault();
+                            resendConfirmationEmail(email, messageDiv);
+                        };
+                    }
+                    return;
+                }
+                
+                // SUCCESS - Account created, confirmation email sent
+                // Clear the form
+                document.getElementById('fullNameInput').value = '';
+                document.getElementById('emailInput').value = '';
+                document.getElementById('passwordInput').value = '';
+                
+                // Show success message with login link (NOT redirect)
+                messageDiv.innerHTML = `
+                    <div class="success-message">
+                        <i class="fas fa-check-circle"></i> <strong>Account created successfully!</strong><br><br>
+                        📧 A confirmation link has been sent to <strong>${email}</strong><br><br>
+                        Please check your email and click the confirmation link to activate your account.<br><br>
+                        <strong>After confirming, you can <a href="login.html" id="loginAfterConfirm">login here</a></strong><br><br>
+                        <small><a href="#" id="resendSuccessLink">Didn't receive email? Resend confirmation link</a></small>
+                    </div>
+                `;
+                
+                const resendSuccessLink = document.getElementById('resendSuccessLink');
+                if (resendSuccessLink) {
+                    resendSuccessLink.onclick = (e) => {
+                        e.preventDefault();
+                        resendConfirmationEmail(email, messageDiv);
+                    };
+                }
+                
+            } catch (error) {
+                console.error('Signup error:', error);
+                messageDiv.innerHTML = `<div class="error-message">${error.message || 'Signup failed. Please try again.'}</div>`;
+            }
+        });
+
+        // Navigation update (no redirect)
+        async function updateNavigation() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('authNavContainer');
+            
+            if (session) {
+                const isAdmin = session.user.email === ADMIN_EMAIL;
+                let profilePicUrl = null;
+                
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+                
+                const profileIconHtml = profilePicUrl 
+                    ? `<img src="${profilePicUrl}" id="profileNavImg" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+                    : `<span id="profileNavIcon">👤</span>`;
+                
+                authNav.innerHTML = `
+                    <div id="profileDropdownContainer" class="profileDropdown">
+                        <div id="profileDropdownIcon" class="profileIcon">
+                            ${profileIconHtml}
+                        </div>
+                        <div id="profileDropdownMenu" class="dropdownMenu">
+                            <a href="profile.html" id="dropdownProfileLink">My Profile</a>
+                            ${isAdmin ? '<a href="admin.html" id="dropdownAdminLink">Admin Panel</a>' : ''}
+                            <a href="#" id="dropdownLogoutLink" onclick="logout()">Logout</a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                authNav.innerHTML = '<a href="login.html" id="navLoginLink">Login</a>';
+            }
+        }
+
+        window.logout = async function() { 
+            await sb.auth.signOut(); 
+            location.reload(); 
+        };
+
+        updateNavigation();
+
+        // Mobile Hamburger Menu
+        const hamburgerBtn = document.getElementById('hamburgerMenuBtn');
+        const navLinks = document.getElementById('navLinksList');
+
+        if (hamburgerBtn && navLinks) {
+            hamburgerBtn.addEventListener('click', function() {
+                this.classList.toggle('active');
+                navLinks.classList.toggle('show');
+            });
+        }
+    </script>
+</body>
+</html>

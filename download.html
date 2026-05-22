@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Download Documents | Rooftopia</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+</head>
+<body>
+    <nav id="mainNavigation">
+        <div id="navContainer">
+            <div id="logoContainer">
+                <a href="index.html" id="logoLink">Rooftopia</a>
+            </div>
+            <button id="hamburgerMenuBtn">
+                <span id="hamburgerLine1"></span>
+                <span id="hamburgerLine2"></span>
+                <span id="hamburgerLine3"></span>
+            </button>
+            <ul id="navLinksList">
+                <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+                <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+                <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+                <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+                <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div id="downloadMainContainer" class="download-container">
+        <div id="loadingContainer" class="loading-container">
+            <div id="loadingSpinner" class="loading-spinner"></div>
+            <p id="loadingText" class="loading-text">Loading your documents...</p>
+        </div>
+        
+        <div id="errorContainer" class="error-container" style="display: none;">
+            <div id="errorIcon" class="error-icon"></div>
+            <p id="errorMessageText" class="error-message"></p>
+        </div>
+        
+        <div id="documentsDisplayContainer" class="documents-container"></div>
+        
+        <div id="buttonContainer" class="button-container" style="display: none;">
+            <button id="downloadPngBtn" class="btn-download"><i class="fas fa-download"></i> Download as PNG</button>
+            <button id="printBtn" class="btn-print" onclick="window.print()"><i class="fas fa-print"></i> Print</button>
+            <a href="dashboard.html" id="backToDashboardBtn" class="btn-back"><i class="fas fa-arrow-left"></i> Back</a>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const docType = urlParams.get('type');
+        const applicationId = urlParams.get('id');
+        const securityToken = urlParams.get('token');
+        
+        let currentApplication = null;
+
+        function calculateExpiryDate(issueDate) {
+            const expiry = new Date(issueDate);
+            expiry.setFullYear(expiry.getFullYear() + 1);
+            return expiry;
+        }
+
+        function isCardValid(expiryDate) {
+            const today = new Date();
+            return today <= expiryDate;
+        }
+
+        function generateVerificationUrl(appId, cnic) {
+            const baseUrl = window.location.origin;
+            return `${baseUrl}/verify-card.html?id=${appId}&cnic=${encodeURIComponent(cnic)}&token=${btoa(appId)}`;
+        }
+
+        function createQRCode(containerId, url, size = 70) {
+            const container = document.getElementById(containerId);
+            if (container) {
+                container.innerHTML = '';
+                new QRCode(container, {
+                    text: url,
+                    width: size,
+                    height: size,
+                    colorDark: "#1E3A5F",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            }
+        }
+
+        async function init() {
+            const loadingContainer = document.getElementById('loadingContainer');
+            const errorContainer = document.getElementById('errorContainer');
+            const documentsContainer = document.getElementById('documentsDisplayContainer');
+            const buttonContainer = document.getElementById('buttonContainer');
+            
+            errorContainer.style.display = 'none';
+            buttonContainer.style.display = 'none';
+            
+            if (!applicationId || !securityToken || atob(securityToken) !== applicationId) {
+                loadingContainer.style.display = 'none';
+                errorContainer.style.display = 'block';
+                document.getElementById('errorMessageText').innerHTML = 'Invalid download link. Please go back and try again.';
+                return;
+            }
+            
+            try {
+                const { data: app, error } = await sb
+                    .from('applications')
+                    .select('*')
+                    .eq('application_id', applicationId)
+                    .single();
+                
+                if (error || !app) {
+                    loadingContainer.style.display = 'none';
+                    errorContainer.style.display = 'block';
+                    document.getElementById('errorMessageText').innerHTML = 'Application not found. Please contact support.';
+                    return;
+                }
+                
+                if (app.status !== 'approved') {
+                    loadingContainer.style.display = 'none';
+                    errorContainer.style.display = 'block';
+                    document.getElementById('errorMessageText').innerHTML = 'Your application has not been approved yet. Please wait for admin approval.';
+                    return;
+                }
+                
+                if (app.is_active === false) {
+                    loadingContainer.style.display = 'none';
+                    errorContainer.style.display = 'block';
+                    document.getElementById('errorMessageText').innerHTML = 'Your citizenship has been terminated. These documents are no longer valid.';
+                    return;
+                }
+                
+                currentApplication = app;
+                loadingContainer.style.display = 'none';
+                
+                if (docType === 'id') {
+                    renderIDCard();
+                } else {
+                    renderPassport();
+                }
+                
+                documentsContainer.style.display = 'block';
+                buttonContainer.style.display = 'block';
+                
+            } catch (err) {
+                console.error('Error:', err);
+                loadingContainer.style.display = 'none';
+                errorContainer.style.display = 'block';
+                document.getElementById('errorMessageText').innerHTML = 'Error loading document. Please try again.';
+            }
+        }
+        
+        function renderIDCard() {
+            const app = currentApplication;
+            const provinceNames = { pr1: 'PR1 Province', pr2: 'PR2 Province', pr3: 'PR3 Province' };
+            const fatherName = app.father_name || '—';
+            const currentCountry = app.current_country || '—';
+            const issueDate = app.approved_at ? new Date(app.approved_at) : new Date();
+            const expiryDate = calculateExpiryDate(issueDate);
+            const isValid = isCardValid(expiryDate);
+            const verificationUrl = generateVerificationUrl(app.application_id, app.cnic);
+            
+            const html = `
+                <div id="idCardsWrapper" class="id-cards-wrapper">
+                    <!-- ID Card Front -->
+                    <div id="idCardFront" class="credit-card credit-card-front">
+                        <div id="idCardFrontHeader" class="card-header">
+                            <h2 id="idCardTitle">REPUBLIC OF ROOFTOPIA</h2>
+                            <div id="idCardEmoji" class="card-emoji"></div>
+                        </div>
+                        <div id="idCardFrontBody" class="card-body">
+                            <div id="idCardPhotoContainer" class="card-photo-container">
+                                <img src="${app.photo || 'https://via.placeholder.com/85x100'}" id="idCardPhoto" class="card-photo">
+                            </div>
+                            <div id="idCardDetails" class="card-details">
+                                <div id="idCardDetailName" class="detail-row">
+                                    <span class="detail-label">Name</span>
+                                    <span class="detail-value">${app.full_name}</span>
+                                </div>
+                                <div id="idCardDetailFather" class="detail-row">
+                                    <span class="detail-label">Father</span>
+                                    <span class="detail-value">${fatherName}</span>
+                                </div>
+                                <div id="idCardDetailDob" class="detail-row">
+                                    <span class="detail-label">DOB</span>
+                                    <span class="detail-value">${new Date(app.dob).toLocaleDateString()}</span>
+                                </div>
+                                <div id="idCardDetailGender" class="detail-row">
+                                    <span class="detail-label">Gender</span>
+                                    <span class="detail-value">${app.gender}</span>
+                                </div>
+                                <div id="idCardDetailProvince" class="detail-row">
+                                    <span class="detail-label">Province</span>
+                                    <span class="detail-value">${provinceNames[app.province] || app.province}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="idCardCnicContainer" class="card-cnic-container">
+                            <span id="idCardCnic" class="card-cnic">${app.cnic || 'PENDING'}</span>
+                        </div>
+                        <div id="idCardFrontFooter" class="card-footer">
+                            <span id="idCardIssueDate" class="footer-item">📅 Issue: ${issueDate.toLocaleDateString()}</span>
+                            <span id="idCardExpiryDate" class="footer-item">⏰ Expiry: ${expiryDate.toLocaleDateString()}</span>
+                            <span id="idCardStatus" class="footer-status ${isValid ? 'status-valid' : 'status-expired'}">${isValid ? '● VALID' : '● EXPIRED'}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- ID Card Back -->
+                    <div id="idCardBack" class="credit-card credit-card-back">
+                        <div id="idCardMagneticStrip" class="magnetic-strip"></div>
+                        <div id="idCardBackBody" class="card-back-body">
+                            <div id="qrCodeContainer" class="qr-code-container"></div>
+                            <div id="idCardBackInfo" class="card-back-info">
+                                <p><strong>Country of Residence:</strong> ${currentCountry}</p>
+                                <p><strong>Document No:</strong> ${app.cnic || 'PENDING'}</p>
+                                <p><strong>Authority:</strong> Supreme Guardian</p>
+                                <p><strong>Valid Until:</strong> ${expiryDate.toLocaleDateString()}</p>
+                            </div>
+                        </div>
+                        <div id="idCardDisclaimer" class="card-disclaimer">
+                            <p>⚠️ This is a ceremonial identification document issued by the Republic of Rooftopia, a micronation. It is for entertainment and commemorative purposes only and holds no legal validity. Not recognized by any government authority.</p>
+                        </div>
+                        <div id="idCardBackFooter" class="card-back-footer">
+                            <span>🔒 Ceremonial Document</span>
+                            <span>Scan QR to verify</span>
+                            <span class="${isValid ? 'status-valid' : 'status-expired'}">${isValid ? 'Active' : 'Expired'}</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.getElementById('documentsDisplayContainer').innerHTML = html;
+            
+            setTimeout(() => {
+                createQRCode('qrCodeContainer', verificationUrl, 70);
+            }, 100);
+        }
+        
+        function renderPassport() {
+            const app = currentApplication;
+            const provinceNames = { pr1: 'PR1 Province', pr2: 'PR2 Province', pr3: 'PR3 Province' };
+            const passportNo = (app.cnic || 'CNIC001') + '-P';
+            const issueDate = app.approved_at ? new Date(app.approved_at) : new Date();
+            const expiryDate = calculateExpiryDate(issueDate);
+            const isValid = isCardValid(expiryDate);
+            
+            const html = `
+                <div id="passportWrapper" class="passport-wrapper">
+                    <div id="passportCover" class="passport-cover">
+                        <div id="passportCoverEmoji" class="passport-emoji">🏴‍☀️</div>
+                        <h2 id="passportCoverTitle" class="passport-title">ROOFTOPIA</h2>
+                        <p id="passportCoverSubtitle" class="passport-subtitle">PASSPORT</p>
+                        <div id="passportCoverFooter" class="passport-cover-footer">
+                            <p>Ceremonial Travel Document</p>
+                            <p class="${isValid ? 'status-valid' : 'status-expired'}">${isValid ? '✓ VALID' : '✗ EXPIRED'}</p>
+                        </div>
+                    </div>
+                    
+                    <div id="passportPage1" class="passport-page">
+                        <div id="passportPage1Header" class="passport-page-header">
+                            <h3>REPUBLIC OF ROOFTOPIA</h3>
+                            <p>PASSPORT · PASSEPORT</p>
+                        </div>
+                        <div id="passportPage1Body" class="passport-page-body">
+                            <div id="passportPage1Left" class="passport-page-left">
+                                <img src="${app.photo || 'https://via.placeholder.com/70x85'}" id="passportPhoto" class="passport-photo">
+                            </div>
+                            <div id="passportPage1Right" class="passport-page-right">
+                                <div class="passport-info-row">
+                                    <span class="passport-info-label">Surname</span>
+                                    <span class="passport-info-value">${app.full_name.split(' ').pop()}</span>
+                                </div>
+                                <div class="passport-info-row">
+                                    <span class="passport-info-label">Given Name(s)</span>
+                                    <span class="passport-info-value">${app.full_name.split(' ').slice(0,-1).join(' ')}</span>
+                                </div>
+                                <div class="passport-info-row">
+                                    <span class="passport-info-label">Nationality</span>
+                                    <span class="passport-info-value">Rooftopian</span>
+                                </div>
+                                <div class="passport-info-row">
+                                    <span class="passport-info-label">Date of Birth</span>
+                                    <span class="passport-info-value">${new Date(app.dob).toLocaleDateString()}</span>
+                                </div>
+                                <div class="passport-info-row">
+                                    <span class="passport-info-label">Place of Birth</span>
+                                    <span class="passport-info-value">${provinceNames[app.province] || app.province}, Rooftopia</span>
+                                </div>
+                                <div class="passport-info-row">
+                                    <span class="passport-info-label">Sex</span>
+                                    <span class="passport-info-value">${app.gender === 'Male' ? 'M' : (app.gender === 'Female' ? 'F' : 'T')}</span>
+                                </div>
+                                <div class="passport-info-row">
+                                    <span class="passport-info-label">Date of Issue</span>
+                                    <span class="passport-info-value">${issueDate.toLocaleDateString()}</span>
+                                </div>
+                                <div class="passport-info-row">
+                                    <span class="passport-info-label">Date of Expiry</span>
+                                    <span class="passport-info-value">${expiryDate.toLocaleDateString()}</span>
+                                </div>
+                                <div class="passport-info-row">
+                                    <span class="passport-info-label">Passport No.</span>
+                                    <span class="passport-info-value">${passportNo}</span>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="passportPage1Footer" class="passport-page-footer">Page 1 of 2</div>
+                    </div>
+                    
+                    <div id="passportPage2" class="passport-page">
+                        <div id="passportPage2Header" class="passport-page-header">
+                            <h3>VISA PAGES</h3>
+                            <p>This passport is valid for ceremonial purposes only</p>
+                        </div>
+                        <div id="passportPage2Stamps" class="passport-stamps">
+                            <div class="visa-stamp">
+                                <span>Rooftopia Entry Stamp</span>
+                                <span>${new Date().toLocaleDateString()}</span>
+                            </div>
+                            <div class="visa-stamp">
+                                <span>Citizen Registration</span>
+                                <span>${issueDate.toLocaleDateString()}</span>
+                            </div>
+                            <div class="visa-stamp">
+                                <span>Diplomatic Recognition</span>
+                                <span>${isValid ? 'Valid' : 'Expired'}</span>
+                            </div>
+                        </div>
+                        <div id="passportDisclaimer" class="passport-disclaimer">
+                            <p>⚠️ This ceremonial passport is issued by the Republic of Rooftopia, a micronation. It holds no legal validity and is not recognized by any government authority. For entertainment purposes only.</p>
+                        </div>
+                        <div id="passportPage2Footer" class="passport-page-footer">
+                            <span>Page 2 of 2</span>
+                            <span class="${isValid ? 'status-valid' : 'status-expired'}">${isValid ? '● DOCUMENT ACTIVE' : '● DOCUMENT EXPIRED'}</span>
+                        </div>
+                    </div>
+                    
+                    <button id="flipPassportBtn" class="flip-btn"><i class="fas fa-book-open"></i> Flip Page</button>
+                </div>
+            `;
+            
+            document.getElementById('documentsDisplayContainer').innerHTML = html;
+            
+            let currentPage = 0;
+            const cover = document.getElementById('passportCover');
+            const page1 = document.getElementById('passportPage1');
+            const page2 = document.getElementById('passportPage2');
+            
+            if (cover && page1 && page2) {
+                page1.style.display = 'none';
+                page2.style.display = 'none';
+                
+                document.getElementById('flipPassportBtn').onclick = function() {
+                    if (currentPage === 0) {
+                        cover.style.display = 'none';
+                        page1.style.display = 'block';
+                        currentPage = 1;
+                    } else if (currentPage === 1) {
+                        page1.style.display = 'none';
+                        page2.style.display = 'block';
+                        currentPage = 2;
+                    } else {
+                        page2.style.display = 'none';
+                        cover.style.display = 'block';
+                        currentPage = 0;
+                    }
+                };
+            }
+        }
+        
+        document.getElementById('downloadPngBtn').addEventListener('click', async function() {
+            if (docType === 'id') {
+                const frontCard = document.getElementById('idCardFront');
+                const backCard = document.getElementById('idCardBack');
+                
+                if (frontCard) {
+                    const canvas = await html2canvas(frontCard, { scale: 3, backgroundColor: '#ffffff' });
+                    const link = document.createElement('a');
+                    link.download = 'rooftopia_id_card_front.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                
+                if (backCard) {
+                    const canvas = await html2canvas(backCard, { scale: 3, backgroundColor: '#ffffff' });
+                    const link = document.createElement('a');
+                    link.download = 'rooftopia_id_card_back.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                }
+                alert('Download complete! Check your downloads folder.');
+            } else {
+                const cover = document.getElementById('passportCover');
+                const page1 = document.getElementById('passportPage1');
+                const page2 = document.getElementById('passportPage2');
+                
+                if (cover && cover.style.display !== 'none') {
+                    const canvas = await html2canvas(cover, { scale: 3, backgroundColor: '#ffffff' });
+                    const link = document.createElement('a');
+                    link.download = 'rooftopia_passport_cover.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                
+                if (page1 && page1.style.display !== 'none') {
+                    const canvas = await html2canvas(page1, { scale: 3, backgroundColor: '#ffffff' });
+                    const link = document.createElement('a');
+                    link.download = 'rooftopia_passport_page1.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                    await new Promise(r => setTimeout(r, 500));
+                }
+                
+                if (page2 && page2.style.display !== 'none') {
+                    const canvas = await html2canvas(page2, { scale: 3, backgroundColor: '#ffffff' });
+                    const link = document.createElement('a');
+                    link.download = 'rooftopia_passport_page2.png';
+                    link.href = canvas.toDataURL();
+                    link.click();
+                }
+                alert('Download complete! Check your downloads folder.');
+            }
+        });
+        
+        async function updateNavigation() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('authNavContainer');
+            
+            if (!authNav) return;
+            
+            if (session) {
+                const isAdmin = session.user.email === 'ahadalihaider79@gmail.com';
+                let profilePicUrl = null;
+                
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+                
+                const profileIconHtml = profilePicUrl 
+                    ? `<img src="${profilePicUrl}" id="profileNavImg">`
+                    : `<span id="profileNavIcon">👤</span>`;
+                
+                authNav.innerHTML = `
+                    <div id="profileDropdownContainer" class="profileDropdown">
+                        <div id="profileDropdownIcon" class="profileIcon">
+                            ${profileIconHtml}
+                        </div>
+                        <div id="profileDropdownMenu" class="dropdownMenu">
+                            <a href="profile.html" id="dropdownProfileLink">My Profile</a>
+                            ${isAdmin ? '<a href="admin.html" id="dropdownAdminLink">Admin Panel</a>' : ''}
+                            <a href="#" id="dropdownLogoutLink" onclick="logout()">Logout</a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                authNav.innerHTML = '<a href="login.html" id="navLoginLink">Login</a>';
+            }
+        }
+        
+        window.logout = async function() { await sb.auth.signOut(); window.location.href = 'login.html'; };
+        
+        updateNavigation();
+        init();
+        
+        document.getElementById('hamburgerMenuBtn')?.addEventListener('click', function() {
+            document.getElementById('navLinksList')?.classList.toggle('show');
+        });
+    </script>
+</body>
+</html>

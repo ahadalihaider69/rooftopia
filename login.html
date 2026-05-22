@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login | Rooftopia</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <nav id="mainNavigation">
+        <div id="navContainer">
+            <div id="logoContainer">
+                <a href="index.html" id="logoLink">Rooftopia</a>
+            </div>
+            <button id="hamburgerMenuBtn">
+                <span id="hamburgerLine1"></span>
+                <span id="hamburgerLine2"></span>
+                <span id="hamburgerLine3"></span>
+            </button>
+            <ul id="navLinksList">
+                <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+                <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+                <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+                <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+                <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div id="authContainer">
+        <h1 id="authTitle">Welcome Back</h1>
+        <p id="authSubtitle">Login to your Rooftopia account</p>
+        <div id="messageArea"></div>
+        
+        <form id="loginForm">
+            <div id="emailGroup" class="formGroup">
+                <label for="emailInput" id="emailLabel">Email Address</label>
+                <input type="email" id="emailInput" placeholder="you@example.com" required>
+            </div>
+            <div id="passwordGroup" class="formGroup">
+                <label for="passwordInput" id="passwordLabel">Password</label>
+                <div id="passwordWrapper">
+                    <input type="password" id="passwordInput" placeholder="Enter your password" required>
+                    <button type="button" id="togglePasswordBtn"><i class="fas fa-eye" id="togglePasswordIcon"></i></button>
+                </div>
+            </div>
+            <button type="submit" id="loginSubmitBtn" class="btnPrimary btn-block">Login</button>
+        </form>
+        
+        <div id="authFooter">
+            Don't have an account? <a href="signup.html" id="signupLink">Sign up here</a><br>
+            <small><a href="#" id="forgotPasswordLink">Forgot password?</a></small>
+            <br><small><a href="#" id="resendConfirmLink">Didn't receive confirmation email? Resend link</a></small>
+        </div>
+        
+        <div id="resetPasswordSection" style="display: none;">
+            <h3 id="resetTitle">Reset Password</h3>
+            <div id="resetGroup" class="formGroup">
+                <label for="resetEmailInput" id="resetEmailLabel">Email Address</label>
+                <input type="email" id="resetEmailInput" placeholder="Enter your email">
+                <button id="sendResetBtn" class="btnPrimary btn-block">Send Reset Link</button>
+            </div>
+            <a href="#" id="backToLoginLink">Back to Login</a>
+        </div>
+        
+        <div id="resendConfirmSection" style="display: none;">
+            <h3 id="resendTitle">Resend Confirmation Email</h3>
+            <div id="resendGroup" class="formGroup">
+                <label for="resendEmailInput" id="resendEmailLabel">Email Address</label>
+                <input type="email" id="resendEmailInput" placeholder="Enter your email">
+                <button id="sendResendBtn" class="btnPrimary btn-block">Send Confirmation Link</button>
+            </div>
+            <a href="#" id="backToLoginResendLink">Back to Login</a>
+        </div>
+    </div>
+
+    <footer id="mainFooter">
+        <div id="footerContentContainer">
+            <div id="footerAboutSection" class="footerSection">
+                <h4 id="footerAboutTitle">Republic of Rooftopia</h4>
+                <p id="footerAboutText">"Above the Ordinary"<br>Est. 2026</p>
+            </div>
+            <div id="footerLinksSection" class="footerSection">
+                <h4 id="footerLinksTitle">Quick Links</h4>
+                <ul id="footerLinksList">
+                    <li id="footerApplyItem"><a href="apply.html" id="footerApplyLink">Apply</a></li>
+                    <li id="footerDashboardItem"><a href="dashboard.html" id="footerDashboardLink">Dashboard</a></li>
+                    <li id="footerAboutItem"><a href="about.html" id="footerAboutLink">About</a></li>
+                </ul>
+            </div>
+            <div id="footerContactSection" class="footerSection">
+                <h4 id="footerContactTitle">Contact</h4>
+                <p id="footerContactEmail">hello@rooftopia.gov</p>
+            </div>
+        </div>
+        <div id="footerBottomContainer">
+            <p id="footerCopyright">© 2026 Republic of Rooftopia — "Above the Ordinary"</p>
+        </div>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const ADMIN_EMAIL = 'ahadalihaider79@gmail.com';
+        
+        let isProcessingConfirmation = false;
+        let pendingChoice = null;
+
+        // Toggle password visibility
+        const toggleBtn = document.getElementById('togglePasswordBtn');
+        const passwordInput = document.getElementById('passwordInput');
+        const toggleIcon = document.getElementById('togglePasswordIcon');
+        
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', function() {
+                if (passwordInput.type === 'password') {
+                    passwordInput.type = 'text';
+                    toggleIcon.classList.remove('fa-eye');
+                    toggleIcon.classList.add('fa-eye-slash');
+                } else {
+                    passwordInput.type = 'password';
+                    toggleIcon.classList.remove('fa-eye-slash');
+                    toggleIcon.classList.add('fa-eye');
+                }
+            });
+        }
+
+        // Handle email confirmation from URL
+        async function handleEmailConfirmation() {
+            const hash = window.location.hash;
+            
+            if (hash && hash.includes('access_token')) {
+                isProcessingConfirmation = true;
+                const msgDiv = document.getElementById('messageArea');
+                msgDiv.innerHTML = '<div class="info-message"><i class="fas fa-spinner fa-spin"></i> Verifying your email...</div>';
+                
+                const { data: { session }, error } = await sb.auth.getSession();
+                
+                if (error) {
+                    msgDiv.innerHTML = `<div class="error-message">Verification failed: ${error.message}</div>`;
+                    isProcessingConfirmation = false;
+                } else if (session) {
+                    const { data: existingApp } = await sb
+                        .from('applications')
+                        .select('id')
+                        .eq('email', session.user.email)
+                        .maybeSingle();
+                    
+                    if (!existingApp) {
+                        await sb.from('applications').insert([{
+                            email: session.user.email,
+                            full_name: session.user.user_metadata?.full_name || '',
+                            status: 'pending_profile',
+                            is_active: true,
+                            auth_user_id: session.user.id,
+                            submitted_at: new Date().toISOString()
+                        }]);
+                    }
+                    
+                    msgDiv.innerHTML = '<div class="success-message"><i class="fas fa-check-circle"></i> Email verified successfully! Redirecting to profile...</div>';
+                    window.location.hash = '';
+                    
+                    setTimeout(() => {
+                        window.location.href = 'profile.html';
+                    }, 2000);
+                }
+            }
+        }
+
+        // Check if account is permanently deleted (auth user removed)
+        async function isAccountPermanentlyDeleted(email) {
+            // First check if application record exists
+            const { data, error } = await sb
+                .from('applications')
+                .select('id, is_auth_deleted, status')
+                .eq('email', email)
+                .maybeSingle();
+            
+            // If no application record AND user can't login, account is deleted
+            if (!data) {
+                // Try to get session - if fails, account is deleted
+                const { data: { session } } = await sb.auth.getSession();
+                if (!session) {
+                    return { deleted: true, message: 'Account not found' };
+                }
+            }
+            
+            // If marked as auth deleted
+            if (data && data.is_auth_deleted === true) {
+                return { deleted: true, message: 'Account permanently deleted' };
+            }
+            
+            return { deleted: false };
+        }
+
+        // Check pending deletion status
+        async function checkPendingDeletion(email) {
+            const { data, error } = await sb
+                .from('applications')
+                .select('deletion_status, deletion_expires_at, is_active')
+                .eq('email', email)
+                .maybeSingle();
+            
+            if (data && data.deletion_status === 'pending_deletion' && data.deletion_expires_at) {
+                const expiryDate = new Date(data.deletion_expires_at);
+                const now = new Date();
+                
+                if (now > expiryDate) {
+                    return { hasPendingDeletion: false, expired: true };
+                }
+                
+                const daysLeft = Math.ceil((expiryDate - now) / (1000 * 60 * 60 * 24));
+                return { hasPendingDeletion: true, daysLeft: daysLeft, expiresAt: expiryDate, userId: data.id };
+            }
+            return { hasPendingDeletion: false, expired: false };
+        }
+
+        // Cancel deletion and restore account
+        async function cancelDeletionAndRestore(email) {
+            await sb.from('applications').update({
+                deletion_status: 'none',
+                deletion_requested_at: null,
+                deletion_expires_at: null,
+                is_active: true
+            }).eq('email', email);
+            
+            await sb.from('deletion_requests').update({ 
+                status: 'cancelled',
+                cancelled: true
+            }).eq('user_email', email);
+        }
+
+        // Proceed with deletion (mark for auto-delete)
+        async function proceedWithDeletion(email) {
+            // Keep deletion_status as pending_deletion
+            // User will stay logged out and account will be deleted after 7 days
+            await sb.from('applications').update({
+                is_active: false
+            }).eq('email', email);
+            
+            // Sign out if somehow logged in
+            await sb.auth.signOut();
+        }
+
+        // Resend confirmation email
+        async function resendConfirmationEmail(email, msgDiv) {
+            msgDiv.innerHTML = '<div class="info-message"><i class="fas fa-spinner fa-spin"></i> Sending confirmation link...</div>';
+            
+            try {
+                const { error } = await sb.auth.resend({
+                    type: 'signup',
+                    email: email,
+                    options: {
+                        emailRedirectTo: window.location.origin + '/login.html'
+                    }
+                });
+                
+                if (error) throw error;
+                
+                msgDiv.innerHTML = `<div class="success-message">
+                    <i class="fas fa-check-circle"></i> Confirmation link sent to ${email}!<br>
+                    Please check your email (and spam folder).
+                </div>`;
+                
+                document.getElementById('resendConfirmSection').style.display = 'none';
+                document.getElementById('loginForm').style.display = 'block';
+                
+            } catch (error) {
+                if (error.message.includes('already confirmed')) {
+                    msgDiv.innerHTML = '<div class="error-message">This email is already confirmed. Please login.</div>';
+                } else {
+                    msgDiv.innerHTML = `<div class="error-message">${error.message}</div>`;
+                }
+            }
+        }
+
+        // Login form submit
+const loginForm = document.getElementById('loginForm');
+const msgDiv = document.getElementById('messageArea');
+
+loginForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (isProcessingConfirmation) {
+        return;
+    }
+    
+    const email = document.getElementById('emailInput').value;
+    const password = document.getElementById('passwordInput').value;
+    
+    msgDiv.innerHTML = '<div class="info-message"><i class="fas fa-spinner fa-spin"></i> Logging in...</div>';
+    
+    try {
+        // FIRST CHECK: Is account permanently deleted?
+        const permDeleted = await isAccountPermanentlyDeleted(email);
+        if (permDeleted.deleted) {
+            msgDiv.innerHTML = '<div class="error-message">❌ This account has been permanently deleted. <a href="signup.html">Create a new account</a></div>';
+            return;
+        }
+        
+        // SECOND CHECK: Check for pending deletion
+        const pendingCheck = await checkPendingDeletion(email);
+        
+        if (pendingCheck.expired) {
+            msgDiv.innerHTML = '<div class="error-message">Your 7-day grace period has expired. Account deletion in progress. Please contact admin.</div>';
+            return;
+        }
+        
+        if (pendingCheck.hasPendingDeletion) {
+            // Show choice dialog IN PAGE
+            msgDiv.innerHTML = `
+                <div class="warning-message">
+                    <strong>⚠️ ACCOUNT DELETION PENDING</strong><br><br>
+                    You have requested to delete your account.<br><br>
+                    <strong>What would you like to do?</strong><br><br>
+                    <button id="keepAccountBtn" class="btn-success" style="margin-right: 10px; padding: 10px 20px;">✅ Keep My Account</button>
+                    <button id="continueDeletionBtn" class="btn-danger" style="padding: 10px 20px;">🗑️ Continue Deletion</button>
+                    <br><br>
+                    <small>You have ${pendingCheck.daysLeft} days left to change your mind.</small>
+                </div>
+            `;
+            
+            const keepBtn = document.getElementById('keepAccountBtn');
+            const continueBtn = document.getElementById('continueDeletionBtn');
+            
+            if (keepBtn) {
+                keepBtn.onclick = async () => {
+                    msgDiv.innerHTML = '<div class="info-message"><i class="fas fa-spinner fa-spin"></i> Restoring your account...</div>';
+                    await cancelDeletionAndRestore(email);
+                    msgDiv.innerHTML = '<div class="success-message">✅ Account restored! Please login again.</div>';
+                    setTimeout(() => location.reload(), 1500);
+                };
+            }
+            
+            if (continueBtn) {
+                continueBtn.onclick = async () => {
+                    msgDiv.innerHTML = '<div class="info-message">Deletion request remains active. You have been logged out.</div>';
+                    await proceedWithDeletion(email);
+                    setTimeout(() => {
+                        window.location.href = 'index.html';
+                    }, 1500);
+                };
+            }
+            return;
+        }
+        
+        // NORMAL LOGIN
+        const { data, error } = await sb.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+        
+        msgDiv.innerHTML = '<div class="success-message"><i class="fas fa-check-circle"></i> Login successful! Redirecting to your profile...</div>';
+        setTimeout(() => {
+            window.location.href = 'profile.html';
+        }, 1500);
+        
+    } catch (error) {
+        // ========== REPLACE THIS SECTION ==========
+        if (error.message.includes('Invalid login credentials')) {
+            // Check if account was deleted from applications
+            const { data } = await sb
+                .from('applications')
+                .select('id')
+                .eq('email', email)
+                .maybeSingle();
+            
+            if (!data) {
+                msgDiv.innerHTML = '<div class="error-message">❌ Account not found. <a href="signup.html">Create a new account</a></div>';
+            } else {
+                msgDiv.innerHTML = '<div class="error-message">❌ Invalid email or password</div>';
+            }
+        } else if (error.message.includes('Email not confirmed')) {
+            msgDiv.innerHTML = `<div class="error-message">
+                📧 Please verify your email first. Check your inbox.<br>
+                <a href="#" id="showResendLink">Click here to resend confirmation link</a>
+            </div>`;
+            
+            const showResendLink = document.getElementById('showResendLink');
+            if (showResendLink) {
+                showResendLink.onclick = (e) => {
+                    e.preventDefault();
+                    document.getElementById('resendEmailInput').value = email;
+                    document.getElementById('loginForm').style.display = 'none';
+                    document.getElementById('resendConfirmSection').style.display = 'block';
+                    document.getElementById('messageArea').innerHTML = '';
+                };
+            }
+        } else if (error.message.includes('Auth session missing')) {
+            msgDiv.innerHTML = '<div class="error-message">❌ Account has been deleted. <a href="signup.html">Create a new account</a></div>';
+        } else {
+            msgDiv.innerHTML = `<div class="error-message">❌ ${error.message}</div>`;
+        }
+        // ========== END OF REPLACED SECTION ==========
+    }
+});
+
+        // Forgot password
+        const forgotLink = document.getElementById('forgotPasswordLink');
+        const resetSection = document.getElementById('resetPasswordSection');
+        const loginFormDiv = document.getElementById('loginForm');
+        const backToLoginLink = document.getElementById('backToLoginLink');
+        const sendResetBtn = document.getElementById('sendResetBtn');
+        const resetEmailInput = document.getElementById('resetEmailInput');
+        
+        if (forgotLink) {
+            forgotLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginFormDiv.style.display = 'none';
+                resetSection.style.display = 'block';
+                msgDiv.innerHTML = '';
+            });
+        }
+        
+        if (backToLoginLink) {
+            backToLoginLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginFormDiv.style.display = 'block';
+                resetSection.style.display = 'none';
+                msgDiv.innerHTML = '';
+            });
+        }
+        
+        if (sendResetBtn) {
+            sendResetBtn.addEventListener('click', async () => {
+                const email = resetEmailInput.value;
+                if (!email) { msgDiv.innerHTML = '<div class="error-message">❌ Enter email</div>'; return; }
+                msgDiv.innerHTML = '<div class="info-message"><i class="fas fa-spinner fa-spin"></i> Sending...</div>';
+                try {
+                    const { error } = await sb.auth.resetPasswordForEmail(email);
+                    if (error) throw error;
+                    msgDiv.innerHTML = '<div class="success-message">✅ Reset link sent! Check your email.</div>';
+                    setTimeout(() => { 
+                        loginFormDiv.style.display = 'block'; 
+                        resetSection.style.display = 'none'; 
+                        msgDiv.innerHTML = ''; 
+                    }, 3000);
+                } catch (error) {
+                    msgDiv.innerHTML = `<div class="error-message">❌ ${error.message}</div>`;
+                }
+            });
+        }
+
+        // Resend confirmation
+        const resendLink = document.getElementById('resendConfirmLink');
+        const resendSection = document.getElementById('resendConfirmSection');
+        const backToLoginResendLink = document.getElementById('backToLoginResendLink');
+        const sendResendBtn = document.getElementById('sendResendBtn');
+        const resendEmailInput = document.getElementById('resendEmailInput');
+        
+        if (resendLink) {
+            resendLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginFormDiv.style.display = 'none';
+                resendSection.style.display = 'block';
+                msgDiv.innerHTML = '';
+            });
+        }
+        
+        if (backToLoginResendLink) {
+            backToLoginResendLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginFormDiv.style.display = 'block';
+                resendSection.style.display = 'none';
+                msgDiv.innerHTML = '';
+            });
+        }
+        
+        if (sendResendBtn) {
+            sendResendBtn.addEventListener('click', async () => {
+                const email = resendEmailInput.value;
+                if (!email) {
+                    msgDiv.innerHTML = '<div class="error-message">❌ Please enter your email</div>';
+                    return;
+                }
+                await resendConfirmationEmail(email, msgDiv);
+            });
+        }
+
+        // Navigation update
+        async function updateNavigation() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('authNavContainer');
+            
+            if (session) {
+                const isAdmin = session.user.email === ADMIN_EMAIL;
+                let profilePicUrl = null;
+                
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+                
+                const profileIconHtml = profilePicUrl 
+                    ? `<img src="${profilePicUrl}" id="profileNavImg" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+                    : `<span id="profileNavIcon">👤</span>`;
+                
+                authNav.innerHTML = `
+                    <div id="profileDropdownContainer" class="profileDropdown">
+                        <div id="profileDropdownIcon" class="profileIcon">
+                            ${profileIconHtml}
+                        </div>
+                        <div id="profileDropdownMenu" class="dropdownMenu">
+                            <a href="profile.html" id="dropdownProfileLink">👤 My Profile</a>
+                            ${isAdmin ? '<a href="admin.html" id="dropdownAdminLink">🔐 Admin Panel</a>' : ''}
+                            <a href="#" id="dropdownLogoutLink" onclick="logout()">🚪 Logout</a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                authNav.innerHTML = '<a href="login.html" id="navLoginLink">Login</a>';
+            }
+        }
+
+        window.logout = async function() { 
+            await sb.auth.signOut(); 
+            location.reload(); 
+        };
+
+        // Initialize
+        updateNavigation();
+        handleEmailConfirmation();
+
+        // Mobile Hamburger Menu
+        const hamburgerBtn = document.getElementById('hamburgerMenuBtn');
+        const navLinks = document.getElementById('navLinksList');
+
+        if (hamburgerBtn && navLinks) {
+            hamburgerBtn.addEventListener('click', function() {
+                this.classList.toggle('active');
+                navLinks.classList.toggle('show');
+            });
+        }
+    </script>
+</body>
+</html>

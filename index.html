@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rooftopia | Official Website</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/nav.js"></script>
+    <!-- ========== NAVIGATION ========== -->
+    <nav id="mainNavigation">
+    <div id="navContainer">
+        <div id="logoContainer">
+            <a href="index.html" id="logoLink">Rooftopia</a>
+        </div>
+        <button id="hamburgerMenuBtn">
+            <span id="hamburgerLine1"></span>
+            <span id="hamburgerLine2"></span>
+            <span id="hamburgerLine3"></span>
+        </button>
+        <ul id="navLinksList">
+            <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+            <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+            <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+            <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+            <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+        </ul>
+    </div>
+</nav>
+
+    <!-- ========== HERO SECTION ========== -->
+    <section id="heroSection">
+        <div id="heroOverlay"></div>
+        <div id="heroContent">
+            <h1 id="heroTitle">Republic of <span id="heroTitleSpan">Rooftopia</span></h1>
+            <p id="heroTagline">"Above the Ordinary" • Est. 2026</p>
+            <div id="heroButtonsContainer">
+                <a href="apply.html" id="heroApplyBtn" class="btnPrimary">Apply for Citizenship</a>
+                <a href="dashboard.html" id="heroDashboardBtn" class="btnOutline">Check Status</a>
+            </div>
+            <div id="heroStatsContainer">
+                <div id="statCitizens" class="heroStat">
+                    <div id="statCitizensNumber">0</div>
+                    <div id="statCitizensLabel">Citizens</div>
+                </div>
+                <div id="statElevation" class="heroStat">
+                    <div id="statElevationNumber">15m</div>
+                    <div id="statElevationLabel">Elevation</div>
+                </div>
+                <div id="statProvinces" class="heroStat">
+                    <div id="statProvincesNumber">3</div>
+                    <div id="statProvincesLabel">Provinces</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== FEATURES GRID ========== -->
+    <section id="featuresSection">
+        <div id="featuresGridContainer">
+            <!-- Feature 1: Voting -->
+            <div id="featureCardVote" class="featureCard" onclick="location.href='vote.html'">
+                <div id="featureVoteIcon" class="featureIcon">🗳️</div>
+                <h3 id="featureVoteTitle">Voting</h3>
+                <p id="featureVoteDesc">Cast your vote on important national matters</p>
+            </div>
+            
+            <!-- Feature 2: Events -->
+            <div id="featureCardEvents" class="featureCard" onclick="location.href='events.html'">
+                <div id="featureEventsIcon" class="featureIcon">📜</div>
+                <h3 id="featureEventsTitle">Events</h3>
+                <p id="featureEventsDesc">Join ceremonies, festivals, and gatherings</p>
+            </div>
+            
+            <!-- Feature 3: Apply -->
+            <div id="featureCardApply" class="featureCard" onclick="location.href='apply.html'">
+                <div id="featureApplyIcon" class="featureIcon">📝</div>
+                <h3 id="featureApplyTitle">Apply</h3>
+                <p id="featureApplyDesc">Become a citizen of Rooftopia</p>
+            </div>
+            
+            <!-- Feature 4: Dashboard -->
+            <div id="featureCardDashboard" class="featureCard" onclick="location.href='dashboard.html'">
+                <div id="featureDashboardIcon" class="featureIcon">📊</div>
+                <h3 id="featureDashboardTitle">Dashboard</h3>
+                <p id="featureDashboardDesc">Check your application status</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== TESTIMONIALS SECTION ========== -->
+    <section id="testimonialsSection">
+        <h2 id="testimonialsTitle">What Citizens Say</h2>
+        <div id="testimonialsGridContainer">
+            <div id="testimonialCard1" class="testimonialCard">
+                <p id="testimonialText1">"The sunset ceremony was magical! I love being part of Rooftopia."</p>
+                <div id="testimonialAuthor1" class="testimonialAuthor">— Sarah, PR1</div>
+            </div>
+            <div id="testimonialCard2" class="testimonialCard">
+                <p id="testimonialText2">"A truly elevated experience. The community is amazing!"</p>
+                <div id="testimonialAuthor2" class="testimonialAuthor">— Michael, PR2</div>
+            </div>
+            <div id="testimonialCard3" class="testimonialCard">
+                <p id="testimonialText3">"Finally, a nation that takes cloud-waving seriously. 10/10!"</p>
+                <div id="testimonialAuthor3" class="testimonialAuthor">— Anonymous Citizen</div>
+            </div>
+        </div>
+    </section>
+
+    <!-- ========== DECREES SECTION ========== -->
+    <section id="decreesSection">
+        <h2 id="decreesTitle">Official Decrees</h2>
+        <div id="decreesListContainer">
+            <div id="decreesLoadingMsg" class="loadingMsg">Loading decrees...</div>
+        </div>
+    </section>
+
+    <!-- ========== FOOTER ========== -->
+    <footer id="mainFooter">
+        <div id="footerContentContainer">
+            <div id="footerAboutSection" class="footerSection">
+                <h4 id="footerAboutTitle">Republic of Rooftopia</h4>
+                <p id="footerAboutText">"Above the Ordinary"<br>Est. 2026</p>
+            </div>
+            <div id="footerLinksSection" class="footerSection">
+                <h4 id="footerLinksTitle">Quick Links</h4>
+                <ul id="footerLinksList">
+                    <li><a href="apply.html" id="footerApplyLink">Apply</a></li>
+                    <li><a href="dashboard.html" id="footerDashboardLink">Dashboard</a></li>
+                    <li><a href="about.html" id="footerAboutLink">About</a></li>
+                </ul>
+            </div>
+            <div id="footerContactSection" class="footerSection">
+                <h4 id="footerContactTitle">Contact</h4>
+                <p id="footerContactEmail">hello@rooftopia.gov</p>
+            </div>
+        </div>
+        <div id="footerBottomContainer">
+            <p id="footerCopyright">© 2026 Republic of Rooftopia — "Above the Ordinary"</p>
+        </div>
+    </footer>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const ADMIN_EMAIL = 'ahadalihaider69@gmail.com';
+
+        async function loadDecrees() {
+            const { data } = await sb.from('decrees').select('*').order('created_at', { ascending: false }).limit(5);
+            const container = document.getElementById('decreesListContainer');
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p id="noDecreesMsg">No decrees yet. Check back soon.</p>';
+                return;
+            }
+            container.innerHTML = data.map(d => `
+                <div id="decreeItem_${d.id}" class="decreeItem">
+                    <div id="decreeTitle_${d.id}" class="decreeTitle">📜 ${d.title}</div>
+                    <div id="decreeContent_${d.id}" class="decreeContent">${d.content}</div>
+                    <div id="decreeDate_${d.id}" class="decreeDate">${new Date(d.created_at).toLocaleDateString()}</div>
+                </div>
+            `).join('');
+        }
+
+        async function loadCitizenCount() {
+            const { count } = await sb.from('applications').select('*', { count: 'exact', head: true }).eq('status', 'approved').eq('is_active', true);
+            document.getElementById('statCitizensNumber').innerText = count || 0;
+        }
+
+        async function checkAuthAndUpdateNav() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('authNavContainer');
+            
+            if (session) {
+                const isAdmin = session.user.email === ADMIN_EMAIL;
+                let profilePicUrl = null;
+                
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+                
+                const profileIconHtml = profilePicUrl 
+                    ? `<img src="${profilePicUrl}" id="profileNavImg" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+                    : `<span id="profileNavIcon">👤</span>`;
+                
+                authNav.innerHTML = `
+                    <div id="profileDropdownContainer" class="profileDropdown">
+                        <div id="profileDropdownIcon" class="profileIcon">
+                            ${profileIconHtml}
+                        </div>
+                        <div id="profileDropdownMenu" class="dropdownMenu">
+                            <a href="profile.html" id="dropdownProfileLink">My Profile</a>
+                            ${isAdmin ? '<a href="admin.html" id="dropdownAdminLink">Admin Panel</a>' : ''}
+                            <a href="#" id="dropdownLogoutLink" onclick="logout()">Logout</a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                authNav.innerHTML = '<a href="login.html" id="navLoginLink">Login</a>';
+            }
+        }
+
+        window.logout = async function() { 
+            await sb.auth.signOut(); 
+            location.reload(); 
+        };
+
+        loadDecrees();
+        loadCitizenCount();
+        checkAuthAndUpdateNav();
+
+        // Mobile Hamburger Menu
+        const hamburgerBtn = document.getElementById('hamburgerMenuBtn');
+        const navLinks = document.getElementById('navLinksList');
+
+        if (hamburgerBtn && navLinks) {
+            hamburgerBtn.addEventListener('click', function() {
+                this.classList.toggle('active');
+                navLinks.classList.toggle('show');
+            });
+        }
+    </script>
+</body>
+</html>

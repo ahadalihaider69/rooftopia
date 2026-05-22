@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Chat | Rooftopia</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+<body>
+    <nav id="mainNavigation">
+        <div id="navContainer">
+            <div id="logoContainer">
+                <a href="index.html" id="logoLink">Rooftopia</a>
+            </div>
+            <button id="hamburgerMenuBtn">
+                <span id="hamburgerLine1"></span>
+                <span id="hamburgerLine2"></span>
+                <span id="hamburgerLine3"></span>
+            </button>
+            <ul id="navLinksList">
+                <li id="navItemHome"><a href="index.html" id="navHomeLink">Home</a></li>
+                <li id="navItemAbout"><a href="about.html" id="navAboutLink">About</a></li>
+                <li id="navItemEvents"><a href="events.html" id="navEventsLink">Events</a></li>
+                <li id="navItemChat"><a href="chat.html" id="navChatLink">Chat</a></li>
+                <li id="authNavContainer"><a href="login.html" id="navLoginLink">Login</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <div id="chatAppContainer">
+        <div id="loginScreenContainer">
+            <div id="loginCardContainer">
+                <h2 id="chatLoginTitle">Chat with Supreme Guardian</h2>
+                <p id="chatLoginSubtitle">Please login to send and receive messages</p>
+                <a href="login.html" id="chatLoginBtn">Login</a>
+                <a href="signup.html" id="chatSignupBtn">Sign up</a>
+            </div>
+        </div>
+
+        <div id="chatScreenContainer" style="display: none;">
+            <div id="chatHeaderContainer">
+                <a href="index.html" id="chatBackBtn">←</a>
+                <div id="adminAvatarContainer">
+                    <span id="adminAvatarIcon">👑</span>
+                </div>
+                <div id="chatHeaderInfoContainer">
+                    <h3 id="chatHeaderTitle">Supreme Guardian</h3>
+                    <p id="chatHeaderStatus">Online</p>
+                </div>
+            </div>
+            <div id="chatMessagesContainer">
+                <div id="chatLoadingMsg">Loading messages...</div>
+            </div>
+            <div id="chatInputAreaContainer">
+                <input type="text" id="chatMessageInput" placeholder="Type a message...">
+                <button id="chatSendBtn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL = 'https://bccuwxxfcznrqxdlbzjr.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJjY3V3eHhmY3pucnF4ZGxiempyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY3MTA2OTYsImV4cCI6MjA5MjI4NjY5Nn0.8uG7G-6D8OjoPskzlRZoC6fPINCqNLeXYurTXA-oudo';
+        const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const ADMIN_EMAIL = 'ahadalihaider69@gmail.com';
+        
+        let currentUser = null;
+        let currentChannel = null;
+
+        function formatTime(timestamp) {
+            if (!timestamp) return '';
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        async function checkAuth() {
+            const { data: { session } } = await sb.auth.getSession();
+            const loginScreen = document.getElementById('loginScreenContainer');
+            const chatScreen = document.getElementById('chatScreenContainer');
+            
+            if (!session) {
+                loginScreen.style.display = 'flex';
+                chatScreen.style.display = 'none';
+                return false;
+            }
+            
+            currentUser = session.user;
+            loginScreen.style.display = 'none';
+            chatScreen.style.display = 'flex';
+            
+            const { data: adminData } = await sb.from('profile_pictures').select('photo_url').limit(1).maybeSingle();
+            const adminAvatar = document.getElementById('adminAvatarContainer');
+            if (adminData && adminData.photo_url) {
+                adminAvatar.innerHTML = `<img src="${adminData.photo_url}" id="adminAvatarImg" alt="Admin">`;
+            } else {
+                adminAvatar.innerHTML = '<span id="adminAvatarIcon">👑</span>';
+            }
+            
+            return true;
+        }
+
+        function addMessageToDOM(message, isFromMe, timestamp) {
+            const container = document.getElementById('chatMessagesContainer');
+            
+            if (container.children.length === 1 && container.children[0].id === 'chatLoadingMsg') {
+                container.innerHTML = '';
+            }
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${isFromMe ? 'sent' : 'received'}`;
+            
+            const bubble = document.createElement('div');
+            bubble.className = 'message-bubble';
+            bubble.textContent = message;
+            
+            const timeSpan = document.createElement('div');
+            timeSpan.className = 'message-time';
+            timeSpan.textContent = formatTime(timestamp);
+            
+            messageDiv.appendChild(bubble);
+            messageDiv.appendChild(timeSpan);
+            container.appendChild(messageDiv);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        async function loadMessages() {
+            const { data, error } = await sb
+                .from('citizen_messages')
+                .select('*')
+                .eq('user_email', currentUser.email)
+                .order('created_at', { ascending: true });
+            
+            const container = document.getElementById('chatMessagesContainer');
+            container.innerHTML = '';
+            
+            if (error || !data || data.length === 0) {
+                container.innerHTML = '<div id="chatNoMessagesMsg">No messages yet. Send a message to the Supreme Guardian!</div>';
+                return;
+            }
+            
+            for (const msg of data) {
+                const isFromMe = !msg.is_admin_reply;
+                let displayTime = msg.created_at;
+                
+                if (msg.is_admin_reply && msg.created_at) {
+                    const date = new Date(msg.created_at);
+                    date.setHours(date.getHours() + 5);
+                    displayTime = date.toISOString();
+                }
+                
+                addMessageToDOM(msg.message, isFromMe, displayTime);
+            }
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatMessageInput');
+            const message = input.value.trim();
+            if (!message) return;
+            
+            input.value = '';
+            
+            const pakistanTime = new Date(Date.now() + (5 * 60 * 60 * 1000));
+            addMessageToDOM(message, true, pakistanTime.toISOString());
+            
+            const { error } = await sb
+                .from('citizen_messages')
+                .insert({
+                    user_email: currentUser.email,
+                    user_name: currentUser.user_metadata?.full_name || currentUser.email,
+                    subject: 'Chat',
+                    message: message,
+                    status: 'unread',
+                    is_admin_reply: false,
+                    created_at: pakistanTime.toISOString()
+                });
+            
+            if (error) {
+                alert('Failed to send message');
+                loadMessages();
+            }
+        }
+
+        function setupRealtime() {
+            if (currentChannel) {
+                sb.removeChannel(currentChannel);
+            }
+            
+            currentChannel = sb
+                .channel(`chat-${currentUser.id}`)
+                .on('postgres_changes', 
+                    {
+                        event: 'INSERT',
+                        schema: 'public',
+                        table: 'citizen_messages',
+                        filter: `user_email=eq.${currentUser.email}`
+                    },
+                    (payload) => {
+                        if (payload.new.is_admin_reply) {
+                            let adjustedTime = payload.new.created_at;
+                            if (payload.new.created_at) {
+                                const date = new Date(payload.new.created_at);
+                                date.setHours(date.getHours() + 5);
+                                adjustedTime = date.toISOString();
+                            }
+                            addMessageToDOM(payload.new.message, false, adjustedTime);
+                        }
+                    }
+                )
+                .subscribe();
+        }
+
+        async function updateNavigation() {
+            const { data: { session } } = await sb.auth.getSession();
+            const authNav = document.getElementById('authNavContainer');
+            
+            if (!authNav) return;
+            
+            if (session) {
+                const isAdmin = session.user.email === ADMIN_EMAIL;
+                let profilePicUrl = null;
+                
+                const { data: picData } = await sb
+                    .from('profile_pictures')
+                    .select('photo_url')
+                    .eq('user_id', session.user.id)
+                    .maybeSingle();
+                
+                if (picData && picData.photo_url) {
+                    profilePicUrl = picData.photo_url;
+                }
+                
+                const profileIconHtml = profilePicUrl 
+                    ? `<img src="${profilePicUrl}" id="profileNavImg" style="width: 40px; height: 40px; border-radius: 50%; object-fit: cover;">`
+                    : `<span id="profileNavIcon">👤</span>`;
+                
+                authNav.innerHTML = `
+                    <div id="profileDropdownContainer" class="profileDropdown">
+                        <div id="profileDropdownIcon" class="profileIcon">
+                            ${profileIconHtml}
+                        </div>
+                        <div id="profileDropdownMenu" class="dropdownMenu">
+                            <a href="profile.html" id="dropdownProfileLink">My Profile</a>
+                            ${isAdmin ? '<a href="admin.html" id="dropdownAdminLink">Admin Panel</a>' : ''}
+                            <a href="#" id="dropdownLogoutLink" onclick="logout()">Logout</a>
+                        </div>
+                    </div>
+                `;
+            } else {
+                authNav.innerHTML = '<a href="login.html" id="navLoginLink">Login</a>';
+            }
+        }
+
+        window.logout = async function() { 
+            await sb.auth.signOut(); 
+            location.reload(); 
+        };
+
+        document.getElementById('chatSendBtn')?.addEventListener('click', sendMessage);
+        document.getElementById('chatMessageInput')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendMessage();
+        });
+
+        async function init() {
+            await updateNavigation();
+            const loggedIn = await checkAuth();
+            if (loggedIn) {
+                await loadMessages();
+                setupRealtime();
+            }
+        }
+        
+        init();
+
+        // Mobile Hamburger Menu
+        const hamburgerBtn = document.getElementById('hamburgerMenuBtn');
+        const navLinks = document.getElementById('navLinksList');
+
+        if (hamburgerBtn && navLinks) {
+            hamburgerBtn.addEventListener('click', function() {
+                this.classList.toggle('active');
+                navLinks.classList.toggle('show');
+            });
+        }
+    </script>
+</body>
+</html>
